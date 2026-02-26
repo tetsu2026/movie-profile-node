@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+backend/dist/
+frontend/dist/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+backend/prisma/migrations/
+
+# Coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp files
+cookies.txt
+cookies2.txt
