@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ユーザーテーブル
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(255)
+  email           String    @unique @db.VarChar(255)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  password        String    @db.VarChar(255)
+  role            UserRole  @default(user)
+  rememberToken   String?   @map("remember_token") @db.VarChar(100)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  profile Profile?
+  videos  Video[]
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// プロフィールテーブル
+model Profile {
+  id               Int       @id @default(autoincrement())
+  userId           Int       @unique @map("user_id")
+  name             String    @db.VarChar(50)
+  biography        String?   @db.Text
+  thumbnailVideoId Int?      @map("thumbnail_video_id")
+  popupVideoId     Int?      @map("popup_video_id")
+  videoOrder       Json?     @map("video_order")
+  isPublic         Boolean   @default(true) @map("is_public")
+  themeColor       String    @default("#667eea") @map("theme_color") @db.VarChar(7)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thumbnailVideo Video? @relation("ThumbnailVideo", fields: [thumbnailVideoId], references: [id], onDelete: SetNull)
+  popupVideo     Video? @relation("PopupVideo", fields: [popupVideoId], references: [id], onDelete: SetNull)
+
+  @@index([isPublic])
+  @@index([deletedAt])
+  @@map("profiles")
+}
+
+// 動画テーブル
+model Video {
+  id               Int         @id @default(autoincrement())
+  userId           Int         @map("user_id")
+  originalFilename String      @map("original_filename") @db.VarChar(255)
+  originalPath     String?     @map("original_path") @db.Text
+  encodedPath      String?     @map("encoded_path") @db.Text
+  thumbnailPath    String?     @map("thumbnail_path") @db.Text
+  duration         Int?
+  fileSize         BigInt?     @map("file_size")
+  status           VideoStatus @default(uploading)
+  retryCount       Int         @default(0) @map("retry_count")
+  errorMessage     String?     @map("error_message") @db.Text
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  deletedAt        DateTime?   @map("deleted_at")
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thumbnailProfiles Profile[] @relation("ThumbnailVideo")
+  popupProfiles     Profile[] @relation("PopupVideo")
+
+  @@index([status])
+  @@index([deletedAt])
+  @@map("videos")
+}
+
+enum UserRole {
+  admin
+  user
+
+  @@map("users_role")
+}
+
+enum VideoStatus {
+  uploading
+  encoding
+  completed
+  failed
+
+  @@map("videos_status")
+}
