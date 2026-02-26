@@ -52,7 +52,7 @@ export class AuthService {
       throw new ConflictException('このメールアドレスは既に登録されています');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
 
     // トランザクションで User + Profile を同時作成
     const user = await this.prisma.$transaction(async (tx) => {
@@ -165,7 +165,7 @@ export class AuthService {
       throw new UnauthorizedException('現在のパスワードが正しくありません');
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
