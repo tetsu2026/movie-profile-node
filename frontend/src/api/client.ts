@@ -32,8 +32,11 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // リフレッシュエンドポイント自体が失敗した場合はリダイレクト
+    // ただし既にログインページにいる場合はリダイレクトしない（無限ループ防止）
     if (error.response?.status === 401 && originalRequest.url === '/auth/refresh') {
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
       return Promise.reject(error);
     }
 
@@ -54,7 +57,9 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

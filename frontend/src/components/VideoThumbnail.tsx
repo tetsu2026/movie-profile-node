@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 
 interface VideoThumbnailProps {
   src: string;
@@ -20,15 +20,11 @@ export default function VideoThumbnail({
   onOpenPopup,
 }: VideoThumbnailProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
-
   const handleMouseEnter = () => {
-    setIsHovered(true);
     videoRef.current?.play();
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
     videoRef.current?.pause();
     if (videoRef.current) {
       videoRef.current.currentTime = 0;

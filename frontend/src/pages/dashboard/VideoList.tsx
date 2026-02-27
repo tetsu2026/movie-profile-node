@@ -67,8 +67,6 @@ export default function VideoList() {
     return `${mb.toFixed(1)} MB`;
   };
 
-  const isUsed = (videoId: number) => videoId === thumbnailVideoId || videoId === popupVideoId;
-
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-12">
