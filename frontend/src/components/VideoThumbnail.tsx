@@ -4,9 +4,16 @@ interface VideoThumbnailProps {
   src: string;
   popupVideoSrc?: string;
   inline?: boolean;
+  size?: 'sm' | 'md' | 'lg';
   themeColor?: string;
   onOpenPopup?: () => void;
 }
+
+const sizeClasses = {
+  sm: 'w-24 h-24',
+  md: 'w-24 h-24 md:w-28 md:h-28 lg:w-32 lg:h-32',
+  lg: 'w-40 h-40',
+};
 
 /**
  * 動画サムネイルコンポーネント
@@ -16,6 +23,7 @@ export default function VideoThumbnail({
   src,
   popupVideoSrc,
   inline = false,
+  size = 'md',
   themeColor = '#667eea',
   onOpenPopup,
 }: VideoThumbnailProps) {
@@ -37,12 +45,12 @@ export default function VideoThumbnail({
     }
   };
 
-  const sizeClass = inline ? 'h-20 w-20' : 'h-32 w-32';
+  const sizeClass = inline ? 'h-20 w-20' : sizeClasses[size];
 
   return (
     <div
-      className={`${sizeClass} cursor-pointer overflow-hidden rounded-xl transition-transform duration-200 hover:scale-105`}
-      style={{ borderColor: themeColor, borderWidth: '2px' }}
+      className={`${sizeClass} cursor-pointer overflow-hidden rounded-full shadow-lg transition-transform duration-200 hover:scale-105`}
+      style={{ borderColor: themeColor, borderWidth: '4px', borderStyle: 'solid' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}

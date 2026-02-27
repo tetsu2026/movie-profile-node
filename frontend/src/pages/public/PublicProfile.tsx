@@ -106,7 +106,7 @@ export default function PublicProfile() {
                   <VideoThumbnail
                     src={thumbnailVideoUrl}
                     popupVideoSrc={popupVideoUrl || undefined}
-                    inline
+                    size="md"
                     themeColor={themeColor}
                     onOpenPopup={hasPopupVideo ? openPopup : undefined}
                   />
