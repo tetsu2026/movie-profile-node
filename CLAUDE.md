@@ -4,27 +4,27 @@
 
 ---
 
-## 📋 プロジェクト概要
+## プロジェクト概要
 
 **プロジェクト名**: 動画付き自己紹介プラットフォーム
-**技術スタック**: Laravel 11.x + PHP 8.2 + MySQL 8.0 + Blade + Tailwind CSS
+**技術スタック**: NestJS + TypeScript + Prisma + MySQL 8.0 + Vite + React + Tailwind CSS v4
 **インフラ**: AWS (EC2, S3, RDS) + Docker (ローカル開発)
 **設計書**: `docs/` 配下に要件定義・アーキテクチャ・DB設計などを配置
 
 ---
 
-## 🌐 言語設定
+## 言語設定
 
 **基本的に日本語で回答してください**
 
 - コードのコメントは日本語で記述
 - エラーメッセージや説明も日本語で提供
-- ただし、変数名・関数名・クラス名は英語で命名（Laravel規約に準拠）
+- ただし、変数名・関数名・クラス名は英語で命名（NestJS/React規約に準拠）
 - ドキュメント生成時も日本語を優先
 
 ---
 
-## 📝 コミットメッセージフォーマット
+## コミットメッセージフォーマット
 
 コミットメッセージは以下のフォーマットに従ってください。
 
@@ -44,8 +44,8 @@
 | `fix` | バグ修正 | `fix: 動画アップロード時のタイムアウトエラーを修正` |
 | `refactor` | リファクタリング（機能変更なし） | `refactor: VideoService のエンコード処理を整理` |
 | `perf` | パフォーマンス改善 | `perf: 動画一覧取得クエリを最適化` |
-| `style` | コードスタイル修正（機能影響なし） | `style: PSR-12 に準拠するよう整形` |
-| `test` | テストの追加・修正 | `test: ProfileController の単体テストを追加` |
+| `style` | コードスタイル修正（機能影響なし） | `style: ESLint ルールに準拠するよう整形` |
+| `test` | テストの追加・修正 | `test: ProfilesController の E2E テストを追加` |
 | `docs` | ドキュメント更新 | `docs: README にセットアップ手順を追記` |
 | `chore` | ビルド・設定ファイルの変更 | `chore: Docker 設定を更新` |
 | `security` | セキュリティ対策 | `security: XSS 対策を強化` |
@@ -55,9 +55,9 @@
 ```
 feat: 動画エンコード機能を実装
 
-FFmpegを使用したmp4エンコード処理を追加
-- VideoEncoderServiceクラスを作成
-- エンコードキューをRedisで管理
+fluent-ffmpeg + BullMQ を使用した非同期エンコード処理を追加
+- VideoEncoderService クラスを作成
+- BullMQ キューで非同期実行
 - 失敗時は最大3回リトライ
 ```
 
@@ -69,16 +69,18 @@ fix: プロフィール更新時の動画選択バリデーションエラーを
 
 ---
 
-## 🎨 コーディングスタイルルール
+## コーディングスタイルルール
 
-### 1. PHP / Laravel
+### 1. TypeScript / NestJS（バックエンド）
 
 #### 基本規約
 
-- **PSR-12** コーディング標準に準拠
-- インデント: **4スペース**
+- **ESLint + Prettier** でコードスタイルを統一
+- インデント: **2スペース**
 - 文字コード: **UTF-8**
 - 改行コード: **LF**
+- セミコロン: **あり**
+- クォート: **シングルクォート**
 
 #### 命名規則
 
@@ -86,156 +88,162 @@ fix: プロフィール更新時の動画選択バリデーションエラーを
 |------|--------|------|
 | クラス名 | PascalCase | `VideoController`, `ProfileService` |
 | メソッド名 | camelCase | `uploadVideo()`, `encodeVideo()` |
-| 変数名 | camelCase | `$userId`, `$encodedPath` |
+| 変数名 | camelCase | `userId`, `encodedPath` |
 | 定数 | UPPER_SNAKE_CASE | `MAX_FILE_SIZE`, `ENCODING_TIMEOUT` |
+| ファイル名 | kebab-case | `video.controller.ts`, `profile.service.ts` |
+| DTOクラス | PascalCase + Dto | `UpdateProfileDto`, `RegisterDto` |
 | データベーステーブル | snake_case（複数形） | `users`, `profiles`, `videos` |
 | データベースカラム | snake_case | `user_id`, `created_at`, `encoded_path` |
+| TypeScriptプロパティ | camelCase（Prisma @@map で変換） | `userId`, `createdAt`, `encodedPath` |
 
-#### Laravel ベストプラクティス
+#### NestJS ベストプラクティス
 
-- **Eloquent モデル**: テーブル名は複数形、モデル名は単数形（`User`, `Profile`, `Video`）
-- **リレーション**: `belongsTo`, `hasOne`, `hasMany` を適切に定義
-- **マスアサインメント**: `$fillable` または `$guarded` を必ず設定
-- **バリデーション**: FormRequest クラスを使用（`StoreProfileRequest` など）
-- **サービスクラス**: 複雑なビジネスロジックは `app/Services/` に分離
-- **リポジトリパターン**: 必要に応じて `app/Repositories/` を使用
+- **モジュール構成**: 機能単位でモジュール分割（`auth/`, `profiles/`, `videos/` 等）
+- **依存性注入**: コンストラクタインジェクションを使用
+- **バリデーション**: `class-validator` + `class-transformer` で DTO バリデーション
+- **ガード**: `JwtAuthGuard`（認証）、`AdminGuard`（管理者権限）で保護
+- **サービスクラス**: ビジネスロジックはサービス層に集約
+- **Prisma**: データベース操作は `PrismaService` 経由で実行
 
 #### コメント
 
-```php
+```typescript
 /**
  * 動画をエンコードしてS3にアップロードする
  *
- * @param Video $video エンコード対象の動画モデル
- * @return bool エンコード成功時 true
+ * @param video エンコード対象の動画レコード
+ * @returns エンコード成功時 true
  * @throws EncodingException エンコード失敗時
  */
-public function encodeVideo(Video $video): bool
-{
-    // FFmpegでエンコード処理を実行
-    $result = $this->ffmpeg->encode($video->original_path);
+async encodeVideo(video: Video): Promise<boolean> {
+  // fluent-ffmpeg でエンコード処理を実行
+  const result = await this.ffmpeg.encode(video.originalPath);
 
-    return $result;
+  return result;
 }
 ```
 
-- DocBlock は公開メソッドに必ず記述
+- JSDoc は公開メソッドに必ず記述
 - 複雑なロジックには日本語コメントを追加
 - `TODO`, `FIXME`, `NOTE` などのマーカーを活用
 
-### 2. Blade テンプレート
+### 2. React / TSX（フロントエンド）
 
 #### 基本ルール
 
 - インデント: **2スペース**
-- Blade ディレクティブは `@` で始める（`@if`, `@foreach`, `@yield`）
-- XSS対策: 必ず `{{ $variable }}` を使用（エスケープされる）
-- HTMLタグは小文字で統一
+- 関数コンポーネント + hooks を使用（クラスコンポーネントは使わない）
+- XSS対策: JSX の `{}` は自動エスケープされる。`dangerouslySetInnerHTML` は使用しない
+- ファイル名: PascalCase（`VideoThumbnail.tsx`, `PublicProfile.tsx`）
 
 #### ファイル構成
 
 ```
-resources/views/
-├── layouts/
-│   ├── app.blade.php        # 共通レイアウト
-│   └── guest.blade.php      # 未認証ユーザー用レイアウト
+frontend/src/
+├── pages/                   # ページコンポーネント
+│   ├── auth/                # 認証関連（Login, Register 等）
+│   ├── dashboard/           # ダッシュボード関連
+│   ├── admin/               # 管理者画面
+│   ├── Home.tsx
+│   └── PublicProfile.tsx
 ├── components/              # 再利用可能なコンポーネント
-│   ├── video-player.blade.php
-│   └── modal.blade.php
-├── dashboard/               # 認証ユーザー向け画面
-│   ├── index.blade.php
-│   ├── profile/
-│   └── videos/
-├── users/                   # 公開プロフィールページ
-│   └── show.blade.php
-└── admin/                   # 管理者専用画面
-    └── users/
+│   ├── VideoThumbnail.tsx
+│   ├── FullcardVideoPlayer.tsx
+│   └── __tests__/           # コンポーネントテスト
+├── hooks/                   # カスタムフック
+├── api/                     # APIクライアント（axios）
+├── contexts/                # AuthContext 等
+├── guards/                  # ルート保護（AuthGuard, GuestGuard, AdminGuard）
+└── styles/                  # グローバルスタイル
 ```
 
 #### 例
 
-```blade
-{{-- プロフィール表示コンポーネント --}}
-<div class="profile-container">
-  @if ($profile->thumbnail_video_id)
-    <x-video-player
-      :src="$profile->thumbnailVideo->encoded_path"
-      :autoplay="true"
-      :muted="true"
+```tsx
+{/* プロフィール表示コンポーネント */}
+<div className="profile-container">
+  {profile.thumbnailVideoId ? (
+    <VideoThumbnail
+      src={profile.thumbnailVideo.encodedUrl}
+      inline={false}
+      themeColor={profile.themeColor}
     />
-  @else
-    <p class="text-gray-500">動画が設定されていません</p>
-  @endif
+  ) : (
+    <p className="text-gray-500">動画が設定されていません</p>
+  )}
 
-  <h1 class="text-2xl font-bold">{{ $profile->name }}</h1>
-  <p class="whitespace-pre-wrap">{{ $profile->biography }}</p>
+  <h1 className="text-2xl font-bold">{profile.name}</h1>
+  <p className="whitespace-pre-wrap">{profile.biography}</p>
 </div>
 ```
 
-### 3. Tailwind CSS
+### 3. Tailwind CSS v4
 
 #### 基本ルール
 
 - クラス名はアルファベット順に並べる
 - レスポンシブ対応は `sm:`, `md:`, `lg:` プレフィックスを使用
 - カスタムCSSは最小限に抑え、Tailwind ユーティリティクラスを優先
+- `@tailwindcss/vite` プラグインで Vite と統合
 
 #### 例
 
-```html
-<button class="bg-blue-500 hover:bg-blue-700 rounded px-4 py-2 text-white font-bold">
+```tsx
+<button className="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700">
   アップロード
 </button>
 ```
 
 #### CSS再ビルドのルール
 
-Tailwind CSSはJIT（Just-In-Time）モードで動作しているため、新しいクラスを使用した場合はCSSの再ビルドが必要です。
+Tailwind CSS v4 は `@tailwindcss/vite` プラグインで動作しています。
 
-**再ビルドが必要なケース**:
-- 今まで使用していなかったTailwindクラスを追加した場合（例: `bg-purple-100`, `text-purple-600`など）
-- カスタムクラスを追加した場合
+**開発時**: `npm run dev` でホットリロードが有効。クラス追加時に自動反映される。
 
-**再ビルドコマンド**:
+**本番ビルド**:
 ```bash
-# Dockerコンテナ内で実行
-docker compose exec app npm run build
+cd frontend && npm run build
 ```
 
-**再ビルドが不要なケース**:
-- 既に他のファイルで使用されているクラスを使う場合
-- HTMLの構造変更のみの場合
+### 4. データベース（Prisma）
 
-**確認方法**:
-- ブラウザで表示を確認し、スタイルが適用されていない場合は再ビルドを実行
-- 開発中は `npm run dev` でホットリロードを有効にしておくと自動反映される
+#### スキーマ定義
 
-### 4. データベース
+- スキーマファイル: `backend/prisma/schema.prisma`
+- `@@map()` でsnake_caseテーブル名にマッピング
+- `@map()` でsnake_caseカラム名にマッピング
+- TypeScript側は camelCase で操作
+
+```prisma
+model Video {
+  id               Int         @id @default(autoincrement())
+  userId           Int         @map("user_id")
+  originalFilename String      @map("original_filename")
+  status           VideoStatus @default(uploading)
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  deletedAt        DateTime?   @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("videos")
+}
+```
 
 #### マイグレーション
 
-- ファイル名: `YYYY_MM_DD_HHMMSS_create_xxxx_table.php`
-- テーブル作成時は必ず `timestamps()` を追加
-- 外部キー制約は `constrained()->onDelete('cascade')` で適切に設定
+- `npx prisma db push` で開発時のスキーマ同期
+- `npx prisma migrate dev` でマイグレーション管理
 
-```php
-Schema::create('videos', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('user_id')->constrained()->onDelete('cascade');
-    $table->string('original_filename');
-    $table->enum('status', ['uploading', 'encoding', 'completed', 'failed'])->default('uploading');
-    $table->timestamps();
-});
-```
+#### ソフトデリート
 
-#### シーダー
-
-- 開発用ダミーデータは `database/seeders/` に配置
-- 本番環境では実行しない設定を徹底
+- `deletedAt` カラムで論理削除を実装
+- クエリ時に `deletedAt: null` フィルタを手動で適用
+- 削除時は `update({ deletedAt: new Date() })` を使用
 
 ---
 
-## 🎯 設計原則とベストプラクティス
+## 設計原則とベストプラクティス
 
 ### 1. デフォルトの標準設定を優先
 
@@ -243,17 +251,16 @@ Schema::create('videos', function (Blueprint $table) {
 
 #### 適用例
 
-**推奨される実装 ✅**
+**推奨される実装**
 - **Tailwind CSS**: ユーティリティクラスのみで実装し、カスタムCSSファイルは作成しない
-- **Laravel Breeze**: 認証画面のデフォルトレイアウト・スタイルをそのまま使用
-- **Eloquent ORM**: 標準の命名規則（`created_at`, `updated_at`）に従う
-- **PSR-12**: PHPの標準コーディング規約に準拠
-- **Laravel の規約**: ディレクトリ構成、ファイル命名、クラス配置をLaravel標準に従う
+- **NestJS**: モジュール・コントローラー・サービスの標準構成に従う
+- **Prisma**: 標準の命名マッピング（`@@map`, `@map`）に従う
+- **React**: 関数コンポーネント + hooks のパターンに統一
 
-**避けるべき実装 ❌**
+**避けるべき実装**
 - カスタムCSSファイル（`custom.css`, `style.css`）の作成
 - Tailwind の設定を過度にカスタマイズ（色やサイズの独自定義）
-- Laravel の規約を無視した独自のディレクトリ構造
+- NestJS の規約を無視した独自のディレクトリ構造
 - フレームワークの機能を再実装（車輪の再発明）
 
 #### 理由
@@ -270,46 +277,41 @@ Schema::create('videos', function (Blueprint $table) {
 #### コードの統一性
 
 **命名規則の一貫性**
-- 変数名: `$userId`, `$videoPath` のように統一（`$user_id` と `$userId` の混在を避ける）
+- 変数名: `userId`, `videoPath` のように camelCase で統一
 - メソッド名: 動詞で始める（`getUser()`, `createVideo()`, `updateProfile()`）
 - クラス名: 単数形で統一（`Video`, `Profile`, `User`）
 
 **コーディングパターンの統一**
-```php
-// ✅ 推奨: プロジェクト全体でこのパターンを統一
-public function store(Request $request)
-{
-    $validated = $request->validated();
+```typescript
+// 推奨: プロジェクト全体でこのパターンを統一
+@Post()
+async store(@Body() dto: CreateVideoDto, @Req() req: Request) {
+  const video = await this.videosService.create(dto, req.user.id);
 
-    $video = Video::create($validated);
-
-    return redirect()->route('videos.index')
-        ->with('success', '動画をアップロードしました');
+  return { message: '動画をアップロードしました', data: video };
 }
 
-// ❌ 避ける: 別の場所で異なるパターンを使わない
-public function save(Request $request)
-{
-    $video = new Video();
-    $video->fill($request->all());
-    $video->save();
+// 避ける: 別の場所で異なるパターンを使わない
+@Post()
+async save(@Body() body: any) {
+  const video = await this.prisma.video.create({ data: body });
 
-    return back()->with('message', 'アップロード完了');
+  return video;
 }
 ```
 
 **エラーハンドリングの統一**
-```php
+```typescript
 // プロジェクト全体で同じエラーハンドリングパターンを使用
 try {
-    $this->videoService->encode($video);
-} catch (EncodingException $e) {
-    Log::error('動画エンコード失敗', [
-        'video_id' => $video->id,
-        'error' => $e->getMessage()
-    ]);
+  await this.videoEncoderService.encode(video);
+} catch (error) {
+  this.logger.error('動画エンコード失敗', {
+    videoId: video.id,
+    error: error.message,
+  });
 
-    return back()->with('error', 'エンコード処理に失敗しました');
+  throw new InternalServerErrorException('エンコード処理に失敗しました');
 }
 ```
 
@@ -323,31 +325,14 @@ try {
 
 **Subject（件名）のスタイル統一**
 ```bash
-# ✅ 推奨: 体言止めで統一
+# 推奨: 体言止めで統一
 feat: ユーザー登録機能を実装
 fix: 動画アップロードのバリデーションエラーを修正
 refactor: VideoService のエンコード処理を整理
 
-# ❌ 避ける: 「〜する」「〜した」などの混在
+# 避ける: 「〜する」「〜した」などの混在
 feat: ユーザー登録機能を実装する
 fix: 動画アップロードのバリデーションエラーを修正した
-refactor: VideoService を整理
-```
-
-**Body（本文）の粒度を統一**
-```bash
-# ✅ 推奨: 箇条書きで変更内容を明記
-feat: 動画エンコード機能を実装
-
-- VideoEncoderService クラスを作成
-- FFmpeg を使用した mp4 エンコード処理を追加
-- エンコード失敗時は最大3回リトライ
-- エンコード状態を videos テーブルで管理
-
-# ❌ 避ける: 曖昧な説明
-feat: 動画エンコード機能を実装
-
-動画のエンコード処理を追加しました。
 ```
 
 #### 統一性チェックポイント
@@ -355,39 +340,40 @@ feat: 動画エンコード機能を実装
 Claude がコードを提案する際は、以下の統一性を確認してください：
 
 - [ ] 既存コードと同じ命名規則を使用しているか
-- [ ] 既存コードと同じインデントスタイル（PHP: 4スペース、Blade: 2スペース）を使用しているか
+- [ ] 既存コードと同じインデントスタイル（TypeScript/TSX: 2スペース）を使用しているか
 - [ ] 既存コードと同じエラーハンドリングパターンを使用しているか
-- [ ] 既存コードと同じレスポンス形式（`redirect()`, `back()`, `view()`）を使用しているか
+- [ ] 既存コードと同じレスポンス形式（JSON統一レスポンス）を使用しているか
 - [ ] コミットメッセージが既存のコミット履歴と同じフォーマットになっているか
 - [ ] 同じ機能を実装する際に、別の実装方法を提案していないか
 
 ---
 
-## 🔍 Claude に指摘してほしい観点
+## Claude に指摘してほしい観点
 
 ### 1. セキュリティ
 
 以下のセキュリティ問題を必ずチェックしてください。
 
-- **XSS (クロスサイトスクリプティング)**: Blade で `{!! !!}` の使用を避け、`{{ }}` でエスケープ
-- **CSRF**: フォーム送信時に `@csrf` ディレクティブを必ず含める
-- **SQLインジェクション**: Eloquent またはクエリビルダを使用し、生SQLは避ける
-- **パスワード**: 必ず `bcrypt` または `Hash::make()` でハッシュ化
-- **ファイルアップロード**: MIME タイプとファイルサイズを厳格にバリデーション
-- **権限チェック**: ミドルウェア（`auth`, `role:admin`）やポリシーで認可を徹底
+- **XSS (クロスサイトスクリプティング)**: `dangerouslySetInnerHTML` の使用を避ける。JSX の `{}` で自動エスケープ
+- **JWT**: httpOnly Cookie に格納。`access_token`（15分）+ `refresh_token`（7日）
+- **SQLインジェクション**: Prisma のパラメータ化クエリを使用し、`$queryRawUnsafe` は避ける
+- **パスワード**: 必ず `bcrypt`（ラウンド12）でハッシュ化
+- **ファイルアップロード**: multer で MIME タイプとファイルサイズを厳格にバリデーション
+- **権限チェック**: `JwtAuthGuard`（認証）、`AdminGuard`（管理者権限）で保護
 - **S3バケット**: パブリック読み取りは必要最小限に、書き込みは不可に設定
+- **セキュリティヘッダー**: `SecurityHeadersMiddleware` で6種のヘッダーを設定
 
 ### 2. パフォーマンス
 
-- **N+1問題**: `with()` で Eager Loading を実施
-- **不要なクエリ**: `select()` で必要なカラムのみ取得
+- **N+1問題**: Prisma `include` で Eager Loading を実施
+- **不要なクエリ**: Prisma `select` で必要なカラムのみ取得
 - **インデックス**: 検索・結合条件のカラムにインデックスを設定
-- **キャッシュ**: 頻繁にアクセスするデータは `Cache::remember()` を活用
-- **動画エンコード**: 同期処理は避け、キューで非同期実行
+- **キャッシュ**: 頻繁にアクセスするデータは `@CacheTTL()` + Redis を活用
+- **動画エンコード**: BullMQ キューで非同期実行
 
 ### 3. 冗長なコードの削減
 
-- **DRY原則**: 同じ処理を複数箇所に書かない（サービスクラスやヘルパー関数に集約）
+- **DRY原則**: 同じ処理を複数箇所に書かない（サービスクラスやユーティリティに集約）
 - **マジックナンバー**: 定数として定義（`MAX_FILE_SIZE = 100 * 1024 * 1024`）
 - **条件分岐の簡潔化**: Early Return を活用
 - **不要な変数**: 1回しか使わない変数は省略
@@ -395,20 +381,20 @@ Claude がコードを提案する際は、以下の統一性を確認してく�
 ### 4. エラーハンドリング
 
 - **try-catch**: 外部API呼び出しやファイル操作は必ず try-catch で囲む
-- **ログ記録**: `Log::error()` でエラー内容を記録
-- **ユーザー通知**: エラー発生時は適切なメッセージを表示
-- **リトライロジック**: 動画エンコード失敗時は最大3回リトライ
+- **ログ記録**: NestJS `Logger` でエラー内容を記録
+- **統一エラーレスポンス**: `HttpExceptionFilter` で統一フォーマットを返却
+- **リトライロジック**: 動画エンコード失敗時は最大3回リトライ（BullMQジョブ設定）
 
 ### 5. テスタビリティ
 
-- **依存性注入**: コンストラクタインジェクションを活用
-- **モック化**: 外部サービス（S3, FFmpeg）はモック可能な設計に
-- **単体テスト**: 重要なロジックは必ずテストを記述（`tests/Unit/`）
-- **機能テスト**: エンドツーエンドのテストも実装（`tests/Feature/`）
+- **依存性注入**: NestJS のコンストラクタインジェクションを活用
+- **モック化**: 外部サービス（S3, FFmpeg, BullMQ）はモック可能な設計に
+- **バックエンドテスト**: Jest + supertest で E2E テスト（`backend/test/`）
+- **フロントエンドテスト**: Vitest + React Testing Library（`frontend/src/**/__tests__/`）
 
 ---
 
-## 🚀 プロジェクト固有のルール
+## プロジェクト固有のルール
 
 ### 1. 動画処理
 
@@ -416,43 +402,54 @@ Claude がコードを提案する際は、以下の統一性を確認してく�
 
 - **出力形式**: mp4 (H.264/AAC)
 - **最大解像度**: 1080p
-- **タイムアウト**: 5分
-- **リトライ**: 最大3回
+- **タイムアウト**: 5分（1回あたり）
+- **リトライ**: 最大3回（BullMQ ジョブ設定）
 - **ステータス**: `uploading` → `encoding` → `completed` / `failed`
+- **処理方式**: BullMQ + Redis で非同期キュー処理
 
 #### ストレージ
 
-- **S3バケット構成**: `videos/{user_id}/{video_id}/original.mp4`, `encoded.mp4`
+- **S3バケット構成**: `users/{userId}/encoded/{videoId}.mp4`
 - **削除ポリシー**: エンコード完了後は元動画を削除
 - **アクセス権限**: エンコード済み動画のみパブリック読み取り可能
+- **S3クライアント**: `@aws-sdk/client-s3`、MinIO互換（`forcePathStyle: true`）
 
-### 2. ユーザー権限
+### 2. 認証
+
+- **方式**: JWT httpOnly Cookie（`access_token` + `refresh_token`）
+- **ペイロード**: `{ sub: userId, role: 'user' | 'admin' }`
+- **アクセストークン有効期限**: 15分
+- **リフレッシュトークン有効期限**: 7日
+- **bcryptラウンド**: 12（Laravel版と統一）
+
+### 3. ユーザー権限
 
 - **一般ユーザー**: 自分のプロフィール・動画のみ編集可能
 - **管理者**: 全ユーザーのデータを閲覧・編集・削除可能
-- **ミドルウェア**: `role:admin` で管理者機能を保護
+- **ガード**: `JwtAuthGuard`（認証）、`AdminGuard`（管理者権限 `role: 'admin'`）
 
-### 3. バリデーションルール
+### 4. バリデーションルール
 
 | 項目 | ルール |
 |------|--------|
 | 名前 | 必須、50文字以内 |
 | 経歴 | 任意、1000文字以内 |
 | 動画ファイルサイズ | 100MB以内 |
-| 動画の長さ | 1分以内 |
+| 動画の長さ | 1分以内（ffprobe で検証） |
 | 対応フォーマット | mp4, mov, avi, wmv |
 
-### 4. データベース命名規則
+### 5. データベース命名規則
 
-設計書（`docs/03_database.md`）に従ってください。
+設計書（`docs/design-docs/03_database.md`）に従ってください。
 
 - テーブル: `users`, `profiles`, `videos`
 - 外部キー: `{関連テーブル名}_id`（例: `user_id`, `thumbnail_video_id`）
 - ソフトデリート: `deleted_at` カラムを使用
+- Prisma `@@map` / `@map` で snake_case DB ↔ camelCase TypeScript を変換
 
 ---
 
-## 📚 参考ドキュメント
+## 参考ドキュメント
 
 プロジェクトの詳細は以下のドキュメントを参照してください。
 
@@ -472,42 +469,70 @@ Claude がコードを提案する際は、以下の統一性を確認してく�
 
 ---
 
-## 🛠 開発環境
+## 開発環境
 
 ### ローカル開発
 
 - **Docker Compose** を使用
 - MinIO でS3をエミュレート
 - MySQL 8.0 コンテナ
-- Nginx + PHP 8.2 コンテナ
+- Redis 7 コンテナ（BullMQ + キャッシュ）
+- Nginx コンテナ（SPA配信 + API proxy）
+
+### サービス構成
+
+| サービス | コンテナ名 | ポート | 用途 |
+|---------|-----------|--------|------|
+| api | api | 3000 | NestJS API（Node.js 20 + FFmpeg） |
+| web | web | 80 | Nginx（SPA配信 + `/api/*` プロキシ） |
+| db | db | 3306 | MySQL 8.0 |
+| minio | minio | 9000/9001 | MinIO（S3エミュレータ） |
+| redis | redis | 6379 | Redis 7（BullMQ + キャッシュ） |
 
 ### コマンド例
 
 ```bash
 # コンテナ起動
-docker-compose up -d
+docker compose up -d
 
-# マイグレーション実行
-docker-compose exec app php artisan migrate
+# DBスキーマ同期
+docker compose exec api npx prisma db push
 
-# シーダー実行（開発環境のみ）
-docker-compose exec app php artisan db:seed
+# Prisma Client 生成
+docker compose exec api npx prisma generate
 
-# テスト実行
-docker-compose exec app php artisan test
+# バックエンドテスト実行
+docker compose exec api npm test
+
+# フロントエンドビルド
+cd frontend && npm run build
+
+# フロントエンド開発サーバー（HMR）
+cd frontend && npm run dev
+
+# フロントエンドテスト実行
+cd frontend && npx vitest run
 ```
+
+### DB接続情報（ローカル）
+
+- ホスト: `localhost:3306`
+- DB名: `movie_prf`
+- ユーザー: `root`
+- パスワード: `password`
 
 ---
 
-## ✅ コードレビュー時のチェックリスト
+## コードレビュー時のチェックリスト
 
 Claude がコードを提案する際は、以下を確認してください。
 
 ### 基本品質
-- [ ] PSR-12 に準拠しているか
-- [ ] XSS, CSRF, SQLインジェクション対策が適切か
-- [ ] N+1問題が発生していないか
-- [ ] バリデーションルールが設計書通りか
+- [ ] ESLint / Prettier ルールに準拠しているか
+- [ ] XSS, SQLインジェクション対策が適切か
+- [ ] JWT 認証・認可が適切に設定されているか
+- [ ] N+1問題が発生していないか（Prisma `include` を使用）
+- [ ] バリデーションルールが設計書通りか（class-validator DTO）
 - [ ] エラーハンドリングとログ記録が適切か
 - [ ] コメントが日本語で記述されているか
 - [ ] マジックナンバーが定数化されているか
@@ -524,22 +549,23 @@ Claude がコードを提案する際は、以下を確認してください。
 
 ---
 
-## 📌 その他の注意事項
+## その他の注意事項
 
 - **絵文字**: ドキュメント内では使用可能ですが、コードやコミットメッセージには基本的に使用しない
-- **後方互換性**: 本プロジェクトはMVP開発中のため、破壊的変更も許容されます（Phase 2以降は注意）
+- **後方互換性**: 本プロジェクトはMVP開発中のため、破壊的変更も許容されます
 - **コスト意識**: AWS リソースは最小限に（月額 $30 以下を目標）
 - **スケーラビリティ**: 初期は100ユーザー想定だが、将来の拡張を考慮した設計を心がける
+- **データ互換性**: Laravel版と同一MySQLスキーマ、同一bcryptハッシュ、同一S3パス構造を維持
 
 ---
 
-## 🔄 このドキュメントの更新
+## このドキュメントの更新
 
 プロジェクトの進行に伴い、ルールが変更される場合があります。
 変更時は必ずこのドキュメントを更新してください。
 
-**最終更新**: 2026-01-13
-**更新内容**: デフォルト設定の優先とコード統一性のルールを追加
+**最終更新**: 2026-02-27
+**更新内容**: Laravel版からNestJS + React版に全面更新
 
 
 ## Playwright MCP使用ルール
