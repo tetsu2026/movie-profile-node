@@ -29,7 +29,7 @@ export class ProfilesService {
       throw new NotFoundException('プロフィールが見つかりません');
     }
 
-    return profile;
+    return this.serializeProfile(profile);
   }
 
   /**
@@ -59,7 +59,7 @@ export class ProfilesService {
       },
     });
 
-    return profile;
+    return this.serializeProfile(profile);
   }
 
   /**
@@ -81,6 +81,23 @@ export class ProfilesService {
       throw new NotFoundException('プロフィールが見つかりません');
     }
 
+    return this.serializeProfile(profile);
+  }
+
+  /**
+   * プロフィールに含まれる動画の BigInt フィールドを Number に変換
+   */
+  private serializeProfile(profile: any) {
+    if (profile.thumbnailVideo) {
+      profile.thumbnailVideo.fileSize = profile.thumbnailVideo.fileSize
+        ? Number(profile.thumbnailVideo.fileSize)
+        : null;
+    }
+    if (profile.popupVideo) {
+      profile.popupVideo.fileSize = profile.popupVideo.fileSize
+        ? Number(profile.popupVideo.fileSize)
+        : null;
+    }
     return profile;
   }
 
