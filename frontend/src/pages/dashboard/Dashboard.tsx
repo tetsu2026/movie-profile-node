@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/client';
+
+// ポーリング間隔（ミリ秒）
+const POLL_INTERVAL = 5000;
 
 interface DashboardData {
   profile: {
@@ -23,12 +26,51 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    api.get('/dashboard')
-      .then((res) => setData(res.data.data))
-      .finally(() => setLoading(false));
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const res = await api.get('/dashboard');
+      setData(res.data.data);
+      return res.data.data as DashboardData;
+    } catch {
+      return null;
+    }
   }, []);
+
+  // 初回読み込み
+  useEffect(() => {
+    fetchDashboard().finally(() => setLoading(false));
+  }, [fetchDashboard]);
+
+  // エンコード中の動画がある場合のみポーリング
+  useEffect(() => {
+    const hasEncoding = (data?.videoStats.encoding ?? 0) > 0
+      || (data?.videoStats.uploading ?? 0) > 0;
+
+    if (hasEncoding && !timerRef.current) {
+      timerRef.current = setInterval(async () => {
+        const result = await fetchDashboard();
+        // エンコード中がなくなったらポーリング停止
+        if (result && result.videoStats.encoding === 0 && result.videoStats.uploading === 0) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+        }
+      }, POLL_INTERVAL);
+    } else if (!hasEncoding && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [data?.videoStats.encoding, data?.videoStats.uploading, fetchDashboard]);
 
   if (loading) {
     return (
