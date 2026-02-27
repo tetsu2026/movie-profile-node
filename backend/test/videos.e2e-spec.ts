@@ -44,11 +44,11 @@ describe('Videos (e2e)', () => {
         })
         .expect(202);
 
-      expect(res.body).toHaveProperty('id');
-      expect(res.body.originalFilename).toBe('test.mp4');
-      expect(res.body.status).toBe('encoding');
+      expect(res.body.data).toHaveProperty('id');
+      expect(res.body.data.originalFilename).toBe('test.mp4');
+      expect(res.body.data.status).toBe('encoding');
 
-      videoId = res.body.id;
+      videoId = res.body.data.id;
     });
 
     it('未対応フォーマットは400', async () => {
@@ -91,9 +91,9 @@ describe('Videos (e2e)', () => {
         .set('Cookie', cookies)
         .expect(200);
 
-      expect(res.body).toHaveProperty('videos');
-      expect(Array.isArray(res.body.videos)).toBe(true);
-      expect(res.body.videos.length).toBeGreaterThanOrEqual(1);
+      expect(res.body.data).toHaveProperty('videos');
+      expect(Array.isArray(res.body.data.videos)).toBe(true);
+      expect(res.body.data.videos.length).toBeGreaterThanOrEqual(1);
     });
 
     it('未認証だと401', async () => {
@@ -110,8 +110,8 @@ describe('Videos (e2e)', () => {
         .set('Cookie', cookies)
         .expect(200);
 
-      expect(res.body.id).toBe(videoId);
-      expect(res.body).toHaveProperty('status');
+      expect(res.body.data.id).toBe(videoId);
+      expect(res.body.data).toHaveProperty('status');
     });
 
     it('存在しない動画IDは404', async () => {
@@ -129,7 +129,7 @@ describe('Videos (e2e)', () => {
         .set('Cookie', cookies)
         .expect(200);
 
-      expect(res.body.message).toContain('削除');
+      expect(res.body.data.message).toContain('削除');
     });
 
     it('削除済み動画のステータス取得は404', async () => {

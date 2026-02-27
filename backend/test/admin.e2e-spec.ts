@@ -23,7 +23,7 @@ describe('Admin (e2e)', () => {
         passwordConfirmation: 'password123',
       });
 
-    const adminId = adminRes.body.id;
+    const adminId = adminRes.body.data.id;
     await prisma.user.update({
       where: { id: adminId },
       data: { role: 'admin' },
@@ -46,7 +46,7 @@ describe('Admin (e2e)', () => {
       });
 
     userCookies = extractCookies(userRes);
-    targetUserId = userRes.body.id;
+    targetUserId = userRes.body.data.id;
   });
 
   afterAll(async () => {
@@ -61,11 +61,11 @@ describe('Admin (e2e)', () => {
         .set('Cookie', adminCookies)
         .expect(200);
 
-      expect(res.body).toHaveProperty('users');
-      expect(res.body).toHaveProperty('pagination');
-      expect(res.body.users.length).toBeGreaterThanOrEqual(2);
-      expect(res.body.pagination).toHaveProperty('total');
-      expect(res.body.pagination).toHaveProperty('totalPages');
+      expect(res.body.data).toHaveProperty('users');
+      expect(res.body.data).toHaveProperty('pagination');
+      expect(res.body.data.users.length).toBeGreaterThanOrEqual(2);
+      expect(res.body.data.pagination).toHaveProperty('total');
+      expect(res.body.data.pagination).toHaveProperty('totalPages');
     });
 
     it('一般ユーザーは403', async () => {
@@ -89,10 +89,10 @@ describe('Admin (e2e)', () => {
         .set('Cookie', adminCookies)
         .expect(200);
 
-      expect(res.body).toHaveProperty('user');
-      expect(res.body).toHaveProperty('profile');
-      expect(res.body).toHaveProperty('videos');
-      expect(res.body.user.id).toBe(targetUserId);
+      expect(res.body.data).toHaveProperty('user');
+      expect(res.body.data).toHaveProperty('profile');
+      expect(res.body.data).toHaveProperty('videos');
+      expect(res.body.data.user.id).toBe(targetUserId);
     });
 
     it('存在しないユーザーIDは404', async () => {
@@ -114,7 +114,7 @@ describe('Admin (e2e)', () => {
         })
         .expect(200);
 
-      expect(res.body.message).toContain('更新');
+      expect(res.body.data.message).toContain('更新');
     });
   });
 
@@ -125,7 +125,7 @@ describe('Admin (e2e)', () => {
         .set('Cookie', adminCookies)
         .expect(200);
 
-      expect(res.body.message).toContain('削除');
+      expect(res.body.data.message).toContain('削除');
     });
 
     it('削除済みユーザーの詳細取得は404', async () => {

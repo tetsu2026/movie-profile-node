@@ -23,7 +23,7 @@ describe('Profiles (e2e)', () => {
       });
 
     cookies = extractCookies(res);
-    userId = res.body.id;
+    userId = res.body.data.id;
   });
 
   afterAll(async () => {
@@ -38,9 +38,9 @@ describe('Profiles (e2e)', () => {
         .set('Cookie', cookies)
         .expect(200);
 
-      expect(res.body.userId).toBe(userId);
-      expect(res.body.name).toBe('プロフィールテスト');
-      expect(res.body.isPublic).toBe(true);
+      expect(res.body.data.userId).toBe(userId);
+      expect(res.body.data.name).toBe('プロフィールテスト');
+      expect(res.body.data.isPublic).toBe(true);
     });
 
     it('未認証だと401', async () => {
@@ -61,8 +61,8 @@ describe('Profiles (e2e)', () => {
         })
         .expect(200);
 
-      expect(res.body.name).toBe('更新後の名前');
-      expect(res.body.biography).toBe('自己紹介テスト');
+      expect(res.body.data.name).toBe('更新後の名前');
+      expect(res.body.data.biography).toBe('自己紹介テスト');
     });
 
     it('テーマカラーを更新できる', async () => {
@@ -75,7 +75,7 @@ describe('Profiles (e2e)', () => {
         })
         .expect(200);
 
-      expect(res.body.themeColor).toBe('#ff5500');
+      expect(res.body.data.themeColor).toBe('#ff5500');
     });
 
     it('不正なテーマカラー形式は400', async () => {
@@ -106,8 +106,8 @@ describe('Profiles (e2e)', () => {
         .get(`/api/users/${userId}/profile`)
         .expect(200);
 
-      expect(res.body.userId).toBe(userId);
-      expect(res.body.isPublic).toBe(true);
+      expect(res.body.data.userId).toBe(userId);
+      expect(res.body.data.isPublic).toBe(true);
     });
 
     it('存在しないユーザーIDは404', async () => {

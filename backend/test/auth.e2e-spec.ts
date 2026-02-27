@@ -32,10 +32,11 @@ describe('Auth (e2e)', () => {
         .send(testUser)
         .expect(201);
 
-      expect(res.body).toHaveProperty('id');
-      expect(res.body.name).toBe(testUser.name);
-      expect(res.body.email).toBe(testUser.email);
-      expect(res.body.role).toBe('user');
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('id');
+      expect(res.body.data.name).toBe(testUser.name);
+      expect(res.body.data.email).toBe(testUser.email);
+      expect(res.body.data.role).toBe('user');
       expect(res.headers['set-cookie']).toBeDefined();
 
       cookies = extractCookies(res);
@@ -70,7 +71,7 @@ describe('Auth (e2e)', () => {
         .send({ email: testUser.email, password: testUser.password })
         .expect(200);
 
-      expect(res.body.email).toBe(testUser.email);
+      expect(res.body.data.email).toBe(testUser.email);
       expect(res.headers['set-cookie']).toBeDefined();
 
       cookies = extractCookies(res);
@@ -98,9 +99,9 @@ describe('Auth (e2e)', () => {
         .set('Cookie', cookies)
         .expect(200);
 
-      expect(res.body.email).toBe(testUser.email);
-      expect(res.body.name).toBe(testUser.name);
-      expect(res.body).not.toHaveProperty('password');
+      expect(res.body.data.email).toBe(testUser.email);
+      expect(res.body.data.name).toBe(testUser.name);
+      expect(res.body.data).not.toHaveProperty('password');
     });
 
     it('未認証だと401', async () => {
@@ -149,7 +150,7 @@ describe('Auth (e2e)', () => {
         .set('Cookie', cookies)
         .expect(200);
 
-      expect(res.body.message).toBe('トークンを更新しました');
+      expect(res.body.data.message).toBe('トークンを更新しました');
       cookies = extractCookies(res);
     });
   });
@@ -160,7 +161,7 @@ describe('Auth (e2e)', () => {
         .post('/api/auth/logout')
         .expect(200);
 
-      expect(res.body.message).toBe('ログアウトしました');
+      expect(res.body.data.message).toBe('ログアウトしました');
     });
   });
 

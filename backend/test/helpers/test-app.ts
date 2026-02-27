@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { TransformInterceptor } from '../../src/common/interceptors/transform.interceptor';
 
 /**
  * テスト用のNestJSアプリケーションを作成
@@ -27,6 +28,7 @@ export async function createTestApp(): Promise<{
 
   app.setGlobalPrefix('api');
   app.use(cookieParser());
+  app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -35,10 +35,10 @@ describe('Dashboard (e2e)', () => {
         .set('Cookie', cookies)
         .expect(200);
 
-      expect(res.body).toHaveProperty('profile');
-      expect(res.body).toHaveProperty('videoStats');
-      expect(res.body.videoStats).toHaveProperty('total');
-      expect(res.body.videoStats.total).toBe(0);
+      expect(res.body.data).toHaveProperty('profile');
+      expect(res.body.data).toHaveProperty('videoStats');
+      expect(res.body.data.videoStats).toHaveProperty('total');
+      expect(res.body.data.videoStats.total).toBe(0);
     });
 
     it('未認証だと401', async () => {

@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,6 +19,9 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,
   });
+
+  // グローバルレスポンス変換インターセプター
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   // グローバルバリデーションパイプ
   app.useGlobalPipes(
