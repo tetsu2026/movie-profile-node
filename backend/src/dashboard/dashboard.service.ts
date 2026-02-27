@@ -34,6 +34,21 @@ export class DashboardService {
       statusCounts[video.status] = (statusCounts[video.status] || 0) + 1;
     }
 
+    // BigInt → Number 変換（JSON.stringifyがBigIntを扱えないため）
+    if (profile?.thumbnailVideo) {
+      (profile.thumbnailVideo as any).fileSize = profile.thumbnailVideo.fileSize
+        ? Number(profile.thumbnailVideo.fileSize)
+        : null;
+    }
+    if (profile?.popupVideo) {
+      (profile.popupVideo as any).fileSize = profile.popupVideo.fileSize
+        ? Number(profile.popupVideo.fileSize)
+        : null;
+    }
+    for (const video of videos) {
+      (video as any).fileSize = video.fileSize ? Number(video.fileSize) : null;
+    }
+
     return {
       profile,
       videoStats: {
