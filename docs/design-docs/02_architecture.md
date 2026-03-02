@@ -28,7 +28,7 @@ graph TB
 
     subgraph "AWS環境"
         subgraph "EC2 t3.micro"
-            Nginx[Nginx<br/>バーチャルホスト振り分け]
+            Nginx[Nginx<br/>ポート別振り分け]
             Laravel[PHP-FPM<br/>Laravel版]
             NestJS[PM2 + Node.js 20<br/>NestJS API]
             ReactSPA[React SPA<br/>静的ファイル配信]
@@ -40,10 +40,10 @@ graph TB
         S3[S3バケット<br/>動画ストレージ]
     end
 
-    Browser -->|HTTPS| Nginx
-    Nginx -->|laravel.example.com| Laravel
-    Nginx -->|nestjs.example.com /api/*| NestJS
-    Nginx -->|nestjs.example.com /| ReactSPA
+    Browser -->|HTTP| Nginx
+    Nginx -->|:80| Laravel
+    Nginx -->|:8080 /api/*| NestJS
+    Nginx -->|:8080 /| ReactSPA
     NestJS --> Redis
     NestJS --> FFmpeg
     NestJS -->|Prisma| RDS
@@ -60,15 +60,17 @@ graph TB
     style S3 fill:#569A31
 ```
 
-#### Nginx バーチャルホスト構成
+#### Nginx ポート別振り分け構成
 
-1つのNginxプロセスで両アプリを振り分け:
+1つのNginxプロセスでポート別に両アプリを振り分け:
 
-| ドメイン | 振り分け先 | 用途 |
-|---------|-----------|------|
-| `laravel.example.com` | PHP-FPM :9000 | Laravel版（既存） |
-| `nestjs.example.com /` | 静的ファイル配信 | React SPA |
-| `nestjs.example.com /api/*` | Node.js :3000 | NestJS API |
+| ポート | 振り分け先 | 用途 |
+|--------|-----------|------|
+| `:80` | PHP-FPM :9000 | Laravel版（既存） |
+| `:8080 /` | 静的ファイル配信 | React SPA |
+| `:8080 /api/*` | Node.js :3000 | NestJS API |
+
+アクセス方法: `http://<EC2パブリックIP>:8080`
 
 #### PM2（プロセスマネージャー）
 
@@ -198,14 +200,13 @@ graph TB
 ```
 EC2 (t3.micro / 1GB RAM + 1GB Swap)
 ├── Nginx (1プロセス)
-│   ├── laravel.example.com → PHP-FPM:9000（Laravel版、既存）
-│   └── nestjs.example.com  → Node.js:3000（NestJS API + React SPA）
+│   ├── :80  → PHP-FPM:9000（Laravel版、既存）
+│   └── :8080 → Node.js:3000（NestJS API + React SPA）
 ├── PHP 8.2 + PHP-FPM（Laravel版、既存）
 ├── PM2 + Node.js 20
 │   └── movie-prf-node（NestJS API、ポート3000）
 ├── Redis 7（maxmemory 64MB）
-├── FFmpeg（動画エンコード）
-└── Let's Encrypt（SSL証明書）
+└── FFmpeg（動画エンコード）
 ```
 
 ### デプロイフロー
