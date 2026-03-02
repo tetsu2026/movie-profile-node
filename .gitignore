@@ -30,6 +30,9 @@ coverage/
 *.log
 npm-debug.log*
 
+# Claude Code
+.claude/settings.local.json
+
 # Temp files
 cookies.txt
 cookies2.txt
