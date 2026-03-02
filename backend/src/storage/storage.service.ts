@@ -18,10 +18,15 @@ export class StorageService {
   constructor(private readonly configService: ConfigService) {
     this.bucket = this.configService.get<string>('AWS_BUCKET', 'movie-prf');
 
+    const endpoint = this.configService.get<string>('AWS_ENDPOINT');
+
     this.s3 = new S3Client({
       region: this.configService.get<string>('AWS_DEFAULT_REGION', 'ap-northeast-1'),
-      endpoint: this.configService.get<string>('AWS_ENDPOINT'),
-      forcePathStyle: true, // MinIO互換
+      // MinIO使用時のみ endpoint と forcePathStyle を設定
+      ...(endpoint && {
+        endpoint,
+        forcePathStyle: true,
+      }),
       credentials: {
         accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID', ''),
         secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY', ''),

@@ -8,6 +8,7 @@ import { VideosModule } from './videos/videos.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AdminModule } from './admin/admin.module';
 import { StorageModule } from './storage/storage.module';
+import { HealthModule } from './health/health.module';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 
 @Module({
@@ -33,6 +34,7 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
     DashboardModule,
     AdminModule,
     StorageModule,
+    HealthModule,
   ],
 })
 export class AppModule implements NestModule {
