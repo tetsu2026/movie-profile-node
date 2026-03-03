@@ -10,6 +10,7 @@ import {
   Res,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
@@ -19,9 +20,10 @@ import { RegisterDto } from './dto/register.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 
 // Cookie設定の共通オプション
+// HTTPS未使用の環境ではsecure: falseにする必要がある
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: process.env.COOKIE_SECURE === 'true',
   sameSite: 'lax' as const,
   path: '/',
 };
@@ -96,10 +98,7 @@ export class AuthController {
   ) {
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'リフレッシュトークンがありません',
-      });
+      throw new UnauthorizedException('リフレッシュトークンがありません');
     }
 
     const tokens = await this.authService.refreshTokens(refreshToken);
