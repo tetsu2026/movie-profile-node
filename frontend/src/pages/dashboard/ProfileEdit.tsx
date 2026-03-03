@@ -19,14 +19,14 @@ interface Profile {
 
 // テーマカラープリセット
 const THEME_COLORS = [
-  '#667eea',
-  '#f5576c',
-  '#4facfe',
-  '#2563EB',
-  '#059669',
-  '#a855f7',
-  '#f97316',
-  '#1D1D1F',
+  { color: '#667eea', label: 'インディゴ' },
+  { color: '#f5576c', label: 'ローズ' },
+  { color: '#4facfe', label: 'スカイ' },
+  { color: '#2563EB', label: 'ブルー' },
+  { color: '#059669', label: 'エメラルド' },
+  { color: '#a855f7', label: 'パープル' },
+  { color: '#f97316', label: 'オレンジ' },
+  { color: '#1D1D1F', label: 'ブラック' },
 ];
 
 export default function ProfileEdit() {
@@ -123,7 +123,7 @@ export default function ProfileEdit() {
 
         {/* 経歴 */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">経歴</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">経歴・自己紹介</label>
           <textarea
             value={profile.biography || ''}
             onChange={(e) => setProfile({ ...profile, biography: e.target.value })}
@@ -172,12 +172,14 @@ export default function ProfileEdit() {
 
         {/* テーマカラー */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">テーマカラー</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">テーマカラー</label>
+          <span className="mb-3 block text-xs text-gray-400">公開ページのカード枠とサムネイル枠に反映されます</span>
           <div className="flex flex-wrap gap-3">
-            {THEME_COLORS.map((color) => (
+            {THEME_COLORS.map(({ color, label }) => (
               <button
                 key={color}
                 type="button"
+                title={label}
                 onClick={() => setProfile({ ...profile, themeColor: color })}
                 className={`h-9 w-9 rounded-full transition-transform ${
                   profile.themeColor === color
@@ -190,21 +192,31 @@ export default function ProfileEdit() {
           </div>
           <div className="mt-2 flex items-center gap-2">
             <div
-              className="h-5 w-5 rounded-full"
+              className="h-5 w-5 rounded-full border border-gray-200"
               style={{ backgroundColor: profile.themeColor }}
             />
-            <span className="text-sm text-gray-500">{profile.themeColor}</span>
+            <span className="text-xs text-gray-500">
+              {THEME_COLORS.find((c) => c.color === profile.themeColor)?.label ?? profile.themeColor}
+            </span>
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-full px-6 py-2 text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: '#1D1D1F' }}
-        >
-          {saving ? '保存中...' : '保存'}
-        </button>
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            キャンセル
+          </Link>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-full px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: '#1D1D1F' }}
+          >
+            {saving ? '保存中...' : '保存する'}
+          </button>
+        </div>
       </form>
     </div>
   );
