@@ -32,7 +32,9 @@ export class AuthService {
       throw new UnauthorizedException('メールアドレスまたはパスワードが正しくありません');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Laravel互換: $2y$ プレフィックスを $2b$ に変換してから比較
+    const hashForCompare = user.password.replace(/^\$2y\$/, '$2b$');
+    const isPasswordValid = await bcrypt.compare(password, hashForCompare);
     if (!isPasswordValid) {
       throw new UnauthorizedException('メールアドレスまたはパスワードが正しくありません');
     }
@@ -52,7 +54,8 @@ export class AuthService {
       throw new ConflictException('このメールアドレスは既に登録されています');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    // Laravel互換: $2b$ → $2y$ に変換して保存
+    const hashedPassword = (await bcrypt.hash(dto.password, 12)).replace(/^\$2b\$/, '$2y$');
 
     // トランザクションで User + Profile を同時作成
     const user = await this.prisma.$transaction(async (tx) => {
@@ -160,12 +163,15 @@ export class AuthService {
       throw new UnauthorizedException('ユーザーが見つかりません');
     }
 
-    const isValid = await bcrypt.compare(currentPassword, user.password);
+    // Laravel互換: $2y$ プレフィックスを $2b$ に変換してから比較
+    const hashForCompare = user.password.replace(/^\$2y\$/, '$2b$');
+    const isValid = await bcrypt.compare(currentPassword, hashForCompare);
     if (!isValid) {
       throw new UnauthorizedException('現在のパスワードが正しくありません');
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    // Laravel互換: $2b$ → $2y$ に変換して保存
+    const hashedPassword = (await bcrypt.hash(newPassword, 12)).replace(/^\$2b\$/, '$2y$');
     await this.prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
