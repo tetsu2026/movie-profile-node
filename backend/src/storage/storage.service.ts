@@ -19,6 +19,8 @@ export class StorageService {
     this.bucket = this.configService.get<string>('AWS_BUCKET', 'movie-prf');
 
     const endpoint = this.configService.get<string>('AWS_ENDPOINT');
+    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
 
     this.s3 = new S3Client({
       region: this.configService.get<string>('AWS_DEFAULT_REGION', 'ap-northeast-1'),
@@ -27,10 +29,13 @@ export class StorageService {
         endpoint,
         forcePathStyle: true,
       }),
-      credentials: {
-        accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID', ''),
-        secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY', ''),
-      },
+      // 明示的なキーがある場合のみ credentials を設定（IAMロール時は省略）
+      ...(accessKeyId && secretAccessKey && {
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      }),
     });
   }
 
