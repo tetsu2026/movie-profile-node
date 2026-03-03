@@ -24,11 +24,14 @@ export class VideosService {
    * 動画をアップロードし、エンコードキューに追加
    */
   async upload(userId: number, file: Express.Multer.File) {
+    // multer はファイル名を Latin-1 でデコードするため、UTF-8 に変換
+    const originalFilename = Buffer.from(file.originalname, 'latin1').toString('utf8');
+
     // 動画レコード作成
     const video = await this.prisma.video.create({
       data: {
         userId,
-        originalFilename: file.originalname,
+        originalFilename,
         status: 'uploading',
         fileSize: BigInt(file.size),
       },
@@ -36,7 +39,7 @@ export class VideosService {
 
     try {
       // S3にアップロード
-      const extension = file.originalname.split('.').pop();
+      const extension = originalFilename.split('.').pop();
       const originalPath = `users/${userId}/original/${video.id}.${extension}`;
       await this.storageService.upload(originalPath, file.buffer, file.mimetype);
 
