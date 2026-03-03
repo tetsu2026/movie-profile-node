@@ -5,7 +5,7 @@ export default function GuestLayout() {
     <div className="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0">
       <div className="mb-6">
         <Link to="/" className="text-2xl font-bold text-gray-800">
-          動画プロフィール
+          動画プロフィール(NestJS/React版)
         </Link>
       </div>
 

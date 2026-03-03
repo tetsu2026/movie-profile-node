@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
       <h1 className="mb-4 text-4xl font-extrabold text-gray-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-        動画付き自己紹介プラットフォーム
+        動画プロフィール(NestJS/React版)
       </h1>
       <p className="mb-8 text-lg text-gray-600">
         動画であなたの魅力を伝えましょう

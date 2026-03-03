@@ -1,5 +1,5 @@
 import { useState, useRef, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../../api/client';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -110,13 +110,22 @@ export default function VideoUpload() {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={!file || uploading}
-          className="rounded-md bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {uploading ? 'アップロード中...' : 'アップロード'}
-        </button>
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+          <Link
+            to="/dashboard/videos"
+            className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            キャンセル
+          </Link>
+          <button
+            type="submit"
+            disabled={!file || uploading}
+            className="rounded-full px-6 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: '#1D1D1F' }}
+          >
+            {uploading ? 'アップロード中...' : 'アップロード'}
+          </button>
+        </div>
       </form>
     </div>
   );
