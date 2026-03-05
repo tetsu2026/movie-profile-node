@@ -9,15 +9,18 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  Req,
   HttpCode,
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
+import { diskStorage } from 'multer';
+import * as os from 'os';
+import * as path from 'path';
 import { VideosService } from './videos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuthUser } from '../types/express';
 
 // 対応MIMEタイプ
 const ALLOWED_MIMES = [
@@ -42,6 +45,13 @@ export class VideosController {
   @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(
     FileInterceptor('video', {
+      storage: diskStorage({
+        destination: os.tmpdir(),
+        filename: (_req, file, cb) => {
+          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, `upload-${uniqueSuffix}${path.extname(file.originalname)}`);
+        },
+      }),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, callback) => {
         if (ALLOWED_MIMES.includes(file.mimetype)) {
@@ -59,13 +69,12 @@ export class VideosController {
   )
   async upload(
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
   ) {
     if (!file) {
       throw new BadRequestException('動画ファイルを選択してください');
     }
 
-    const user = req.user as { id: number };
     return this.videosService.upload(user.id, file);
   }
 
@@ -73,8 +82,7 @@ export class VideosController {
    * 動画一覧取得
    */
   @Get()
-  async findAll(@Req() req: Request) {
-    const user = req.user as { id: number };
+  async findAll(@CurrentUser() user: AuthUser) {
     return this.videosService.findAllByUser(user.id);
   }
 
@@ -84,9 +92,8 @@ export class VideosController {
   @Get(':id/status')
   async getStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
   ) {
-    const user = req.user as { id: number };
     return this.videosService.getStatus(id, user.id);
   }
 
@@ -97,9 +104,8 @@ export class VideosController {
   async delete(
     @Param('id', ParseIntPipe) id: number,
     @Query('forceDelete') forceDelete: string,
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
   ) {
-    const user = req.user as { id: number };
     return this.videosService.delete(id, user.id, forceDelete === 'true');
   }
 }

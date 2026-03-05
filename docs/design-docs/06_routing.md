@@ -1,455 +1,351 @@
-# ルーティング設計書（画面/HTTP）
+# ルーティング設計書（NestJS REST API）
 
-## ルート一覧
+## 概要
 
-### 公開ページ（認証不要）
-
-#### GET / (home)
-**Controller**: HomeController@index
-**Middleware**: web
-**説明**: トップページ表示（サービス紹介、登録・ログインへの導線）
-**成功時**: トップページのビューを返却
-**失敗時**: -
+- バックエンドはNestJS REST API（グローバルプレフィックス: `/api`）
+- フロントエンドはReact SPA（React Router v7でクライアントサイドルーティング）
+- 認証はJWT httpOnly Cookie方式（`access_token` + `refresh_token`）
 
 ---
 
-#### GET /users/{id} (users.show)
-**Controller**: PublicProfileController@show
-**Middleware**: web
-**説明**: ユーザーの公開プロフィールページを表示
-**成功時**: プロフィールページのビューを返却（ユーザー名、経歴、動画）
-**失敗時**: ユーザーが存在しない場合は404エラーページ
+## API エンドポイント一覧
+
+### 認証（AuthController）
+
+| メソッド | パス | Guard | 説明 |
+|---------|------|-------|------|
+| POST | `/api/auth/register` | - | ユーザー登録 |
+| POST | `/api/auth/login` | LocalAuthGuard | ログイン |
+| POST | `/api/auth/logout` | - | ログアウト（Cookie削除） |
+| POST | `/api/auth/refresh` | - | トークンリフレッシュ |
+| GET | `/api/auth/me` | JwtAuthGuard | 認証ユーザー情報取得 |
+| PUT | `/api/auth/password` | JwtAuthGuard | パスワード更新 |
+| DELETE | `/api/auth/me` | JwtAuthGuard | アカウント削除（ソフトデリート） |
 
 ---
 
-### 認証ページ（Laravel Breeze標準）
-
-#### GET /register (register)
-**Controller**: Auth\RegisteredUserController@create
-**Middleware**: guest
-**説明**: ユーザー登録フォーム表示
-**成功時**: 登録フォームのビューを返却
-**失敗時**: 既にログイン済みの場合はダッシュボードへリダイレクト
-
----
-
-#### POST /register (register)
-**Controller**: Auth\RegisteredUserController@store
-**Middleware**: guest
-**説明**: ユーザー登録処理
-**成功時**: ユーザー作成 → プロフィールレコード作成 → ログイン → ダッシュボードへリダイレクト
-**失敗時**: バリデーションエラーをセッションに格納して登録フォームへリダイレクト
-
----
-
-#### GET /login (login)
-**Controller**: Auth\AuthenticatedSessionController@create
-**Middleware**: guest
-**説明**: ログインフォーム表示
-**成功時**: ログインフォームのビューを返却
-**失敗時**: 既にログイン済みの場合はダッシュボードへリダイレクト
-
----
-
-#### POST /login (login)
-**Controller**: Auth\AuthenticatedSessionController@store
-**Middleware**: guest
-**説明**: ログイン処理
-**成功時**: 認証成功 → セッション作成 → ダッシュボードへリダイレクト
-**失敗時**: 認証失敗メッセージをセッションに格納してログインフォームへリダイレクト
-
----
-
-#### POST /logout (logout)
-**Controller**: Auth\AuthenticatedSessionController@destroy
-**Middleware**: auth
-**説明**: ログアウト処理
-**成功時**: セッション破棄 → トップページへリダイレクト
-**失敗時**: -
-
----
-
-### Breezeアカウント設定（認証必須）
-
-#### GET /profile (profile.edit)
-**Controller**: ProfileController@edit
-**Middleware**: auth
-**説明**: Breezeアカウント設定画面（メールアドレス変更、パスワード変更、アカウント削除）
-**成功時**: アカウント設定フォームのビューを返却
-**失敗時**: 未認証の場合はログインページへリダイレクト
-
----
-
-#### PATCH /profile (profile.update)
-**Controller**: ProfileController@update
-**Middleware**: auth
-**説明**: アカウント情報（名前・メールアドレス）の更新処理
-**成功時**: アカウント情報更新 → 成功メッセージ → アカウント設定ページへリダイレクト
-**失敗時**: バリデーションエラーをセッションに格納してアカウント設定ページへリダイレクト
-
----
-
-#### DELETE /profile (profile.destroy)
-**Controller**: ProfileController@destroy
-**Middleware**: auth
-**説明**: アカウント削除処理
-**成功時**: ユーザーアカウント削除 → トップページへリダイレクト
-**失敗時**: パスワード確認失敗時はエラーメッセージ表示
-
----
-
-### パスワードリセット（Laravel Breeze標準）
-
-#### GET /forgot-password (password.request)
-**Controller**: Auth\PasswordResetLinkController@create
-**Middleware**: guest
-**説明**: パスワードリセットリンク入力フォーム表示
-
----
-
-#### POST /forgot-password (password.email)
-**Controller**: Auth\PasswordResetLinkController@store
-**Middleware**: guest
-**説明**: パスワードリセットメール送信処理
-
----
-
-#### GET /reset-password/{token} (password.reset)
-**Controller**: Auth\NewPasswordController@create
-**Middleware**: guest
-**説明**: 新パスワード入力フォーム表示
-
----
-
-#### POST /reset-password (password.store)
-**Controller**: Auth\NewPasswordController@store
-**Middleware**: guest
-**説明**: 新パスワード保存処理
-
----
-
-### 一般ユーザーページ（認証必須）
-
-#### GET /dashboard (dashboard)
-**Controller**: DashboardController@index
-**Middleware**: auth, verified
-**説明**: ダッシュボード表示（プロフィール状態、各機能へのリンク）
-**成功時**: ダッシュボードのビューを返却（プロフィール情報、動画数）
-**失敗時**: 未認証の場合はログインページへリダイレクト
-
----
-
-#### GET /dashboard/profile/edit (dashboard.profile.edit)
-**Controller**: Dashboard\ProfileController@edit
-**Middleware**: auth
-**説明**: プロフィール編集フォーム表示
-**成功時**: 編集フォームのビューを返却（現在のプロフィール情報、動画リスト）
-**失敗時**: 未認証の場合はログインページへリダイレクト
-
----
-
-#### PUT /dashboard/profile (dashboard.profile.update)
-**Controller**: Dashboard\ProfileController@update
-**Middleware**: auth
-**説明**: プロフィール更新処理
-**成功時**: プロフィール更新 → 成功メッセージ → ダッシュボードへリダイレクト
-**失敗時**: バリデーションエラーをセッションに格納して編集フォームへリダイレクト
-
----
-
-#### GET /dashboard/videos (videos.index)
-**Controller**: VideoController@index
-**Middleware**: auth
-**説明**: 自分の動画一覧表示
-**成功時**: 動画一覧のビューを返却（動画リスト、ステータス、削除ボタン）
-**失敗時**: 未認証の場合はログインページへリダイレクト
-
----
-
-#### GET /dashboard/videos/upload (videos.create)
-**Controller**: VideoController@create
-**Middleware**: auth
-**説明**: 動画アップロードフォーム表示
-**成功時**: アップロードフォームのビューを返却
-**失敗時**: 未認証の場合はログインページへリダイレクト
-
----
-
-#### POST /dashboard/videos (videos.store)
-**Controller**: VideoController@store
-**Middleware**: auth
-**説明**: 動画アップロード処理
-**成功時**:
-1. バリデーション通過
-2. videosレコード作成（status: uploading）
-3. S3に元動画アップロード
-4. エンコードジョブ開始（同期処理 Phase 1）
-5. 成功メッセージ → 動画一覧へリダイレクト
-
-**失敗時**:
-- バリデーションエラー（ファイルサイズ、長さ、形式）をセッションに格納してアップロードフォームへリダイレクト
-- S3アップロード失敗時はエラーメッセージを表示
-- エンコード失敗時はstatusをfailedに更新してエラー通知
-
----
-
-#### DELETE /dashboard/videos/{id} (videos.destroy)
-**Controller**: VideoController@destroy
-**Middleware**: auth
-**説明**: 動画削除処理
-**成功時**:
-1. 動画の所有権チェック
-2. プロフィールで使用中でないかチェック
-3. S3から動画ファイル削除
-4. videosレコード削除
-5. 成功メッセージ → 動画一覧へリダイレクト
-
-**失敗時**:
-- 所有権がない場合は403エラー
-- プロフィールで使用中の場合はエラーメッセージ → 動画一覧へリダイレクト
-
----
-
-#### GET /dashboard/preview (preview)
-**Controller**: PreviewController@show
-**Middleware**: auth
-**説明**: 自分の公開ページのプレビュー表示
-**成功時**: 公開ページと同じレイアウトのビューを返却（下書き状態の注意書き付き）
-**失敗時**: 未認証の場合はログインページへリダイレクト
-
----
-
-### 管理者専用ページ
-
-#### GET /admin/users (admin.users.index)
-**Controller**: Admin\UserController@index
-**Middleware**: auth, admin
-**説明**: 全ユーザーの一覧表示
-**成功時**: ユーザー一覧のビューを返却（ID, メール, 名前, 権限, 作成日時）
-**失敗時**:
-- 未認証の場合はログインページへリダイレクト
-- 管理者権限がない場合は403エラーページ
-
----
-
-#### GET /admin/users/{id}/edit (admin.users.edit)
-**Controller**: Admin\UserController@edit
-**Middleware**: auth, admin
-**説明**: 特定ユーザーのプロフィール編集フォーム表示
-**成功時**: 編集フォームのビューを返却（プロフィール情報、権限変更ドロップダウン）
-**失敗時**:
-- 未認証の場合はログインページへリダイレクト
-- 管理者権限がない場合は403エラーページ
-- ユーザーが存在しない場合は404エラー
-
----
-
-#### PUT /admin/users/{id} (admin.users.update)
-**Controller**: Admin\UserController@update
-**Middleware**: auth, admin
-**説明**: 特定ユーザーのプロフィール更新処理
-**成功時**:
-1. プロフィール更新
-2. 権限変更（admin / user）
-3. 成功メッセージ → ユーザー一覧へリダイレクト
-
-**失敗時**:
-- バリデーションエラーをセッションに格納して編集フォームへリダイレクト
-- 管理者権限がない場合は403エラー
-
----
-
-#### DELETE /admin/users/{id} (admin.users.destroy)
-**Controller**: Admin\UserController@destroy
-**Middleware**: auth, admin
-**説明**: ユーザー削除処理（ソフトデリート）
-**成功時**:
-1. ユーザーのdeleted_atを更新（ソフトデリート）
-2. プロフィール・動画はカスケード削除
-3. S3の動画ファイルも削除
-4. 成功メッセージ → ユーザー一覧へリダイレクト
-
-**失敗時**:
-- 管理者権限がない場合は403エラー
-- ユーザーが存在しない場合は404エラー
-
----
-
-## Middleware定義
-
-### web
-- Laravelのデフォルトミドルウェアグループ
-- セッション管理、CSRF保護、クッキー暗号化などを提供
-- 全てのWebルートに適用
-
----
-
-### guest
-- 未認証ユーザーのみアクセス可能
-- 既にログインしている場合は `/dashboard` へリダイレクト
-- 適用ルート: `/register`, `/login`
-
----
-
-### auth
-- 認証済みユーザーのみアクセス可能
-- 未認証の場合は `/login` へリダイレクト
-- 適用ルート: `/dashboard/*`, `/admin/*`
-
----
-
-### admin
-- 管理者権限を持つユーザーのみアクセス可能
-- 権限チェック: `Auth::user()->role === 'admin'`
-- 権限がない場合は403エラーページ表示
-- 適用ルート: `/admin/*`
-
-**実装例**:
-```php
-public function handle($request, Closure $next)
+#### POST /api/auth/register
+**レート制限**: 60秒あたり5回
+**リクエスト**:
+```json
 {
-    if (Auth::check() && Auth::user()->role === 'admin') {
-        return $next($request);
-    }
-    abort(403, 'この操作を実行する権限がありません');
+  "name": "田中太郎",
+  "email": "tanaka@example.com",
+  "password": "password123",
+  "passwordConfirmation": "password123"
+}
+```
+**成功レスポンス** (201):
+- Cookie: `access_token`（15分）、`refresh_token`（7日）
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "田中太郎",
+    "email": "tanaka@example.com",
+    "role": "user"
+  }
+}
+```
+**失敗**: 409（メール重複）、400（バリデーションエラー、パスワード不一致）
+
+---
+
+#### POST /api/auth/login
+**レート制限**: 60秒あたり5回
+**リクエスト**:
+```json
+{
+  "email": "tanaka@example.com",
+  "password": "password123"
+}
+```
+**成功レスポンス** (200):
+- Cookie: `access_token`（15分）、`refresh_token`（7日）
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "田中太郎",
+    "email": "tanaka@example.com",
+    "role": "user"
+  }
+}
+```
+**失敗**: 401（認証失敗）
+
+---
+
+#### POST /api/auth/logout
+**成功レスポンス** (200): Cookie削除
+```json
+{ "data": { "message": "ログアウトしました" } }
+```
+
+---
+
+#### POST /api/auth/refresh
+**レート制限**: 60秒あたり10回
+**成功レスポンス** (200): 新しいトークンペアをCookieにセット
+```json
+{ "data": { "message": "トークンを更新しました" } }
+```
+**失敗**: 401（リフレッシュトークン無効）
+
+---
+
+#### GET /api/auth/me
+**Guard**: JwtAuthGuard
+**成功レスポンス** (200):
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "田中太郎",
+    "email": "tanaka@example.com",
+    "role": "user",
+    "emailVerifiedAt": null,
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  }
 }
 ```
 
 ---
 
-## レスポンスパターン
-
-### 成功時
-
-#### ビュー返却（GET リクエスト）
-```php
-return view('pages.profile.edit', [
-    'profile' => $profile,
-    'videos' => $videos,
-]);
+#### PUT /api/auth/password
+**Guard**: JwtAuthGuard
+**リクエスト**:
+```json
+{
+  "currentPassword": "oldpassword",
+  "newPassword": "newpassword123"
+}
 ```
+**成功レスポンス** (200):
+```json
+{ "data": { "message": "パスワードを更新しました" } }
+```
+**失敗**: 401（現在のパスワード不一致）
 
-#### リダイレクト（POST / PUT / DELETE リクエスト）
-```php
-return redirect()->route('dashboard')
-    ->with('success', 'プロフィールを更新しました');
+---
+
+#### DELETE /api/auth/me
+**Guard**: JwtAuthGuard
+**成功レスポンス** (200): Cookie削除、S3ファイル削除、ソフトデリート
+```json
+{ "data": { "message": "アカウントを削除しました" } }
 ```
 
 ---
 
-### 失敗時
+### プロフィール（ProfilesController）
 
-#### バリデーションエラー
-```php
-$request->validate([
-    'name' => 'required|max:50',
-    'biography' => 'nullable|max:1000',
-]);
+| メソッド | パス | Guard | 説明 |
+|---------|------|-------|------|
+| GET | `/api/profiles/me` | JwtAuthGuard | 自分のプロフィール取得 |
+| PUT | `/api/profiles/me` | JwtAuthGuard | プロフィール更新 |
+| GET | `/api/users/:id/profile` | - | 公開プロフィール取得 |
 
-// エラー時は自動的に元のフォームへリダイレクト
-// エラーメッセージは $errors 変数で取得可能
+---
+
+#### GET /api/profiles/me
+**Guard**: JwtAuthGuard
+**成功レスポンス** (200): プロフィール情報（動画情報含む）
+
+---
+
+#### PUT /api/profiles/me
+**Guard**: JwtAuthGuard
+**リクエスト**:
+```json
+{
+  "name": "田中太郎",
+  "biography": "自己紹介文",
+  "thumbnailVideoId": 1,
+  "popupVideoId": 2,
+  "themeColor": "#667eea"
+}
 ```
+**失敗**: 400（動画の所有権チェック、エンコード未完了）
 
-#### 権限エラー
-```php
-abort(403, 'この操作を実行する権限がありません');
+---
+
+#### GET /api/users/:id/profile
+**認証不要**（公開プロフィール）
+**成功レスポンス** (200): 公開プロフィール情報
+**失敗**: 404（ユーザーが存在しない、非公開、ソフトデリート済み）
+
+---
+
+### 動画（VideosController）
+
+| メソッド | パス | Guard | 説明 |
+|---------|------|-------|------|
+| POST | `/api/videos` | JwtAuthGuard | 動画アップロード |
+| GET | `/api/videos` | JwtAuthGuard | 動画一覧取得 |
+| GET | `/api/videos/:id/status` | JwtAuthGuard | 動画ステータス取得（ポーリング用） |
+| DELETE | `/api/videos/:id` | JwtAuthGuard | 動画削除 |
+
+---
+
+#### POST /api/videos
+**Guard**: JwtAuthGuard
+**Content-Type**: multipart/form-data
+**フィールド**: `video`（ファイル）
+**制約**: 100MB以下、mp4/mov/avi/wmv
+**成功レスポンス** (202): BullMQエンコードキューに追加
+```json
+{
+  "data": {
+    "id": 1,
+    "originalFilename": "sample.mp4",
+    "status": "encoding"
+  }
+}
 ```
+**失敗**: 400（ファイル未選択、MIMEタイプ不正、サイズ超過）
 
-#### 404エラー
-```php
-$user = User::findOrFail($id); // 存在しない場合は自動的に404
+---
+
+#### GET /api/videos
+**Guard**: JwtAuthGuard
+**成功レスポンス** (200): 動画一覧 + プロフィールでの使用状況
+
+---
+
+#### GET /api/videos/:id/status
+**Guard**: JwtAuthGuard
+**成功レスポンス** (200):
+```json
+{
+  "data": {
+    "id": 1,
+    "status": "completed",
+    "errorMessage": null,
+    "encodedUrl": "/api/storage/users/1/encoded/1.mp4"
+  }
+}
 ```
+**失敗**: 404（動画が存在しない、他ユーザーの動画）
 
-#### カスタムエラー（例: プロフィールで使用中の動画削除）
-```php
-return redirect()->route('videos.index')
-    ->with('error', 'この動画はプロフィールで使用中のため削除できません');
+---
+
+#### DELETE /api/videos/:id
+**Guard**: JwtAuthGuard
+**クエリパラメータ**: `forceDelete=true`（プロフィール使用中の動画を強制削除）
+**成功レスポンス** (200): S3ファイル削除 + ソフトデリート
+**失敗**: 404（存在しない）、403（他ユーザーの動画）、400（使用中で`forceDelete`なし）
+
+---
+
+### ダッシュボード（DashboardController）
+
+| メソッド | パス | Guard | 説明 |
+|---------|------|-------|------|
+| GET | `/api/dashboard` | JwtAuthGuard | ダッシュボード情報取得 |
+
+---
+
+### 管理者（AdminController）
+
+| メソッド | パス | Guard | 説明 |
+|---------|------|-------|------|
+| GET | `/api/admin/users` | JwtAuthGuard + AdminGuard | ユーザー一覧（ページネーション付き） |
+| GET | `/api/admin/users/:id` | JwtAuthGuard + AdminGuard | ユーザー詳細 |
+| PUT | `/api/admin/users/:id` | JwtAuthGuard + AdminGuard | ユーザー情報更新 |
+| DELETE | `/api/admin/users/:id` | JwtAuthGuard + AdminGuard | ユーザー削除（S3クリーンアップ + ソフトデリート） |
+
+---
+
+#### GET /api/admin/users
+**クエリパラメータ**: `page`（デフォルト: 1）、`limit`（デフォルト: 10）
+**成功レスポンス** (200):
+```json
+{
+  "data": {
+    "users": [...],
+    "pagination": {
+      "total": 50,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 5
+    }
+  }
+}
 ```
 
 ---
 
-## ルートグループ構成
+### ストレージ（StorageController）
 
-### routes/web.php 構成例
+| メソッド | パス | Guard | 説明 |
+|---------|------|-------|------|
+| GET | `/api/storage/*` | - | エンコード済み動画のストリーミング配信 |
 
-```php
-<?php
+**パス制約**: `users/{userId}/encoded/{videoId}.mp4` パターンのみ許可（パストラバーサル防止）
 
-use App\Http\Controllers\Admin\UserController as AdminUserController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Dashboard\ProfileController as DashboardProfileController;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\PreviewController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PublicProfileController;
-use App\Http\Controllers\VideoController;
-use Illuminate\Support\Facades\Route;
+---
 
-// ===== 公開ページ（認証不要） =====
-Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/users/{id}', [PublicProfileController::class, 'show'])->name('users.show');
+### ヘルスチェック（HealthController）
 
-// ===== ダッシュボード（認証 + メール認証必須） =====
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+| メソッド | パス | Guard | 説明 |
+|---------|------|-------|------|
+| GET | `/api/health` | - | サーバーヘルスチェック |
 
-// ===== 一般ユーザーページ（認証必須） =====
-Route::middleware('auth')->group(function () {
-    // Breezeアカウント設定
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+---
 
-    // プロフィール情報編集（Dashboard\ProfileController）
-    Route::get('/dashboard/profile/edit', [DashboardProfileController::class, 'edit'])->name('dashboard.profile.edit');
-    Route::put('/dashboard/profile', [DashboardProfileController::class, 'update'])->name('dashboard.profile.update');
+## Guard（認証・認可）
 
-    // プレビュー
-    Route::get('/dashboard/preview', [PreviewController::class, 'show'])->name('preview');
+### JwtAuthGuard
+- httpOnly Cookie (`access_token`) からJWTを取得・検証
+- 未認証の場合は401レスポンス
+- ペイロード: `{ sub: userId, role: 'user' | 'admin' }`
 
-    // 動画管理
-    Route::get('/dashboard/videos', [VideoController::class, 'index'])->name('videos.index');
-    Route::get('/dashboard/videos/upload', [VideoController::class, 'create'])->name('videos.create');
-    Route::post('/dashboard/videos', [VideoController::class, 'store'])->name('videos.store');
-    Route::delete('/dashboard/videos/{id}', [VideoController::class, 'destroy'])->name('videos.destroy');
-});
+### AdminGuard
+- `JwtAuthGuard` の後に適用
+- `role === 'admin'` のチェック
+- 権限がない場合は403レスポンス
 
-// ===== 管理者専用ページ（管理者のみ） =====
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
-    Route::get('/users/{id}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
-    Route::put('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');
-    Route::delete('/users/{id}', [AdminUserController::class, 'destroy'])->name('users.destroy');
-});
+### LocalAuthGuard
+- ログインエンドポイント専用
+- email/passwordでPassport Local認証を実行
 
-// ===== 認証ページ（Laravel Breeze標準 — パスワードリセット含む） =====
-require __DIR__.'/auth.php';
+---
+
+## レスポンス形式
+
+全エンドポイントは `TransformInterceptor` により以下の統一形式で返却:
+
+```json
+{
+  "data": { ... },
+  "statusCode": 200
+}
+```
+
+エラー時:
+```json
+{
+  "message": "エラーメッセージ",
+  "statusCode": 400
+}
 ```
 
 ---
 
-## 補足事項
+## フロントエンド ルーティング（React Router v7）
 
-### RESTfulな設計
-- リソース操作は標準的なHTTPメソッドを使用
-  - GET: リソース取得
-  - POST: リソース作成
-  - PUT: リソース更新
-  - DELETE: リソース削除
-
-### 名前付きルート
-- 全てのルートに名前を付与（`name('route.name')`）
-- ビューやコントローラーで `route('route.name')` でURL生成可能
-- URLが変更されてもビュー側の修正が不要
-
-### CSRF保護
-- POST / PUT / DELETE リクエストには自動的にCSRF保護が適用
-- Bladeテンプレートで `@csrf` ディレクティブを使用
-
-### Phase 2での拡張予定
-- 公開/非公開切り替え: `PUT /dashboard/profile/visibility` 追加
-- アクセス解析: `GET /dashboard/analytics` 追加
-- 独自ドメイン設定: `PUT /dashboard/domain` 追加
-
-**注記**: パスワードリセット機能はLaravel Breeze標準として実装済み（`/forgot-password`, `/reset-password/{token}`）
+| パス | コンポーネント | Guard | 説明 |
+|------|-------------|-------|------|
+| `/` | Home | - | トップページ |
+| `/login` | Login | GuestGuard | ログイン |
+| `/register` | Register | GuestGuard | ユーザー登録 |
+| `/forgot-password` | ForgotPassword | GuestGuard | パスワードリセット（未実装） |
+| `/dashboard` | Dashboard | AuthGuard | ダッシュボード |
+| `/dashboard/profile` | ProfileEdit | AuthGuard | プロフィール編集 |
+| `/dashboard/profile/settings` | ProfileSettings | AuthGuard | アカウント設定 |
+| `/dashboard/videos` | VideoList | AuthGuard | 動画一覧 |
+| `/dashboard/videos/upload` | VideoUpload | AuthGuard | 動画アップロード |
+| `/admin/users` | UserList | AuthGuard (admin) | ユーザー一覧 |
+| `/admin/users/:id/edit` | UserEdit | AuthGuard (admin) | ユーザー編集 |
+| `/users/:id` | PublicProfile | - | 公開プロフィール |
