@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 import VideoThumbnail from '../../components/VideoThumbnail';
 import FullcardVideoPlayer from '../../components/FullcardVideoPlayer';
 
@@ -18,6 +19,7 @@ export default function ProfilePreview() {
   const [error, setError] = useState<string | null>(null);
   const [popupOpen, setPopupOpen] = useState(false);
   const [thumbVisible, setThumbVisible] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     api.get('/profiles/me')
@@ -70,8 +72,37 @@ export default function ProfilePreview() {
     <div className="min-h-screen px-4 py-12" style={{ backgroundColor: '#F5F5F7' }}>
       <div className="mx-auto max-w-2xl">
         {/* プレビューバナー */}
-        <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-center text-sm text-amber-700">
-          これはプレビューです。実際の公開ページとは異なる場合があります。
+        <div
+          className="mb-4 flex flex-col gap-3 rounded-2xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+          style={{ backgroundColor: '#F0FDF4', color: '#1D1D1F' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <svg className="h-4 w-4 flex-shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-sm font-medium">プレビュー表示中（他のユーザーには表示されません）</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/dashboard/profile/edit"
+              className="rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-150"
+              style={{ border: '1px solid #D1D5DB', color: '#1D1D1F' }}
+              onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#9CA3AF'; }}
+              onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#D1D5DB'; }}
+            >
+              編集に戻る
+            </Link>
+            <a
+              href={`/users/${user?.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-150"
+              style={{ backgroundColor: '#1D1D1F', color: '#ffffff' }}
+            >
+              公開ページを見る
+            </a>
+          </div>
         </div>
 
         {/* プロフィールカード（PublicProfile と同じ見た目） */}
@@ -130,18 +161,6 @@ export default function ProfilePreview() {
           )}
         </div>
 
-        {/* ダッシュボードに戻るリンク */}
-        <div className="mt-4 text-right">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 transition-colors duration-150 hover:text-gray-700"
-          >
-            ダッシュボードに戻る
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </Link>
-        </div>
       </div>
     </div>
   );
