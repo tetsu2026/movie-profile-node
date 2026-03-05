@@ -189,7 +189,10 @@ export class VideosService {
     }
 
     // ソフトデリート
-    await this.prisma.video.delete({ where: { id: video.id } });
+    await this.prisma.video.update({
+      where: { id: video.id },
+      data: { deletedAt: new Date() },
+    });
 
     // メッセージ生成
     let message = '動画を削除しました';
