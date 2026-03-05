@@ -15,6 +15,7 @@ interface Profile {
   thumbnailVideoId: number | null;
   popupVideoId: number | null;
   themeColor: string;
+  isPublic: boolean;
 }
 
 // テーマカラープリセット
@@ -50,6 +51,7 @@ export default function ProfileEdit() {
         thumbnailVideoId: p.thumbnailVideoId,
         popupVideoId: p.popupVideoId,
         themeColor: p.themeColor || '#667eea',
+        isPublic: p.isPublic ?? false,
       });
       // エンコード完了済み動画のみ
       const completed = videosRes.data.data.videos.filter(
@@ -199,6 +201,22 @@ export default function ProfileEdit() {
               {THEME_COLORS.find((c) => c.color === profile.themeColor)?.label ?? profile.themeColor}
             </span>
           </div>
+        </div>
+
+        {/* 公開設定 */}
+        <div className="flex items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={profile.isPublic}
+              onChange={(e) => setProfile({ ...profile, isPublic: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700">プロフィールを公開する</span>
+          </label>
+          <span className="text-xs text-gray-400">
+            オフにすると公開ページ（/users/ID）にアクセスできなくなります
+          </span>
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">

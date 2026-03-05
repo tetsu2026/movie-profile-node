@@ -30,8 +30,8 @@ const ALLOWED_MIMES = [
   'video/x-ms-wmv',     // wmv
 ];
 
-// 最大ファイルサイズ: 100MB
-const MAX_FILE_SIZE = 100 * 1024 * 1024;
+// 最大ファイルサイズ: 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 @Controller('videos')
 @UseGuards(JwtAuthGuard)

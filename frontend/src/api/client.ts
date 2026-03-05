@@ -31,10 +31,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // 認証不要の公開ページではログインへリダイレクトしない
+    const isPublicPage = window.location.pathname === '/'
+      || window.location.pathname.startsWith('/users/')
+      || window.location.pathname === '/login'
+      || window.location.pathname === '/register';
+
     // リフレッシュエンドポイント自体が失敗した場合はリダイレクト
-    // ただし既にログインページにいる場合はリダイレクトしない（無限ループ防止）
     if (error.response?.status === 401 && originalRequest.url === '/auth/refresh') {
-      if (window.location.pathname !== '/login') {
+      if (!isPublicPage) {
         window.location.href = '/login';
       }
       return Promise.reject(error);
@@ -42,6 +47,11 @@ api.interceptors.response.use(
 
     // 401かつリトライ未実施の場合
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // 公開ページでは自動リフレッシュを試行しない
+      if (isPublicPage) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -57,9 +67,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

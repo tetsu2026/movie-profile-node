@@ -18,6 +18,7 @@ import Dashboard from './pages/dashboard/Dashboard';
 import ProfileEdit from './pages/dashboard/ProfileEdit';
 import VideoList from './pages/dashboard/VideoList';
 import VideoUpload from './pages/dashboard/VideoUpload';
+import ProfilePreview from './pages/dashboard/ProfilePreview';
 import ProfileSettings from './pages/dashboard/ProfileSettings';
 
 // 管理者
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="/dashboard/profile/edit" element={<ProfileEdit />} />
               <Route path="/dashboard/videos" element={<VideoList />} />
               <Route path="/dashboard/videos/upload" element={<VideoUpload />} />
+              <Route path="/dashboard/profile/preview" element={<ProfilePreview />} />
               <Route path="/profile" element={<ProfileSettings />} />
             </Route>
           </Route>
