@@ -12,10 +12,13 @@ import {
   HttpStatus,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuthUser } from '../types/express';
 import { RegisterDto } from './dto/register.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 
@@ -35,6 +38,7 @@ export class AuthController {
   /**
    * ユーザー登録
    */
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
@@ -56,6 +60,7 @@ export class AuthController {
   /**
    * ログイン
    */
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -90,6 +95,7 @@ export class AuthController {
   /**
    * トークンリフレッシュ
    */
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -112,8 +118,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getMe(@Req() req: Request) {
-    const user = req.user as { id: number };
+  async getMe(@CurrentUser() user: AuthUser) {
     return this.authService.getMe(user.id);
   }
 
@@ -123,10 +128,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Put('password')
   async updatePassword(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Body() dto: UpdatePasswordDto,
   ) {
-    const user = req.user as { id: number };
     await this.authService.updatePassword(
       user.id,
       dto.currentPassword,
@@ -141,10 +145,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Delete('me')
   async deleteAccount(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = req.user as { id: number };
     await this.authService.deleteAccount(user.id);
 
     res.clearCookie('access_token', COOKIE_OPTIONS);

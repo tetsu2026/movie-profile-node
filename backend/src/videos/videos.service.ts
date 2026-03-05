@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bullmq';
+import * as fs from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 
@@ -38,10 +39,16 @@ export class VideosService {
     });
 
     try {
-      // S3にアップロード
+      // S3にストリームでアップロード
       const extension = originalFilename.split('.').pop();
       const originalPath = `users/${userId}/original/${video.id}.${extension}`;
-      await this.storageService.upload(originalPath, file.buffer, file.mimetype);
+      const uploadStream = fs.createReadStream(file.path);
+      try {
+        await this.storageService.upload(originalPath, uploadStream, file.mimetype);
+      } finally {
+        // 一時ファイル削除
+        fs.unlink(file.path, () => {});
+      }
 
       // ステータスを encoding に更新
       await this.prisma.video.update({

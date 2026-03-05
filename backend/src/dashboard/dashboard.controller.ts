@@ -1,7 +1,8 @@
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuthUser } from '../types/express';
 
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard)
@@ -12,8 +13,7 @@ export class DashboardController {
    * ダッシュボード情報取得
    */
   @Get()
-  async getDashboard(@Req() req: Request) {
-    const user = req.user as { id: number };
+  async getDashboard(@CurrentUser() user: AuthUser) {
     return this.dashboardService.getDashboard(user.id);
   }
 }
