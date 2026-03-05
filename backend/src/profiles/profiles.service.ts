@@ -52,6 +52,7 @@ export class ProfilesService {
         thumbnailVideoId: dto.thumbnailVideoId,
         popupVideoId: dto.popupVideoId,
         themeColor: dto.themeColor,
+        ...(dto.isPublic !== undefined && { isPublic: dto.isPublic }),
       },
       include: {
         thumbnailVideo: true,

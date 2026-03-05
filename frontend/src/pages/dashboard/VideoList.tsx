@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
+
+// ポーリング間隔（ミリ秒）
+const POLL_INTERVAL = 5000;
 
 interface Video {
   id: number;
@@ -26,18 +29,54 @@ export default function VideoList() {
   const [popupVideoId, setPopupVideoId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchVideos = async () => {
-    const res = await api.get('/videos');
-    const data = res.data.data;
-    setVideos(data.videos);
-    setThumbnailVideoId(data.thumbnailVideoId);
-    setPopupVideoId(data.popupVideoId);
-  };
+  const fetchVideos = useCallback(async () => {
+    try {
+      const res = await api.get('/videos');
+      const data = res.data.data;
+      setVideos(data.videos);
+      setThumbnailVideoId(data.thumbnailVideoId);
+      setPopupVideoId(data.popupVideoId);
+      return data.videos as Video[];
+    } catch {
+      return null;
+    }
+  }, []);
 
+  // 初回読み込み
   useEffect(() => {
     fetchVideos().finally(() => setLoading(false));
-  }, []);
+  }, [fetchVideos]);
+
+  // エンコード中・アップロード中の動画がある場合のみポーリング
+  useEffect(() => {
+    const hasProcessing = videos.some(
+      (v) => v.status === 'encoding' || v.status === 'uploading',
+    );
+
+    if (hasProcessing && !timerRef.current) {
+      timerRef.current = setInterval(async () => {
+        const result = await fetchVideos();
+        if (result && !result.some((v: Video) => v.status === 'encoding' || v.status === 'uploading')) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+        }
+      }, POLL_INTERVAL);
+    } else if (!hasProcessing && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [videos, fetchVideos]);
 
   const handleDelete = async (videoId: number, forceDelete: boolean = false) => {
     try {

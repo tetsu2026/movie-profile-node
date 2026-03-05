@@ -2,7 +2,7 @@ import { useState, useRef, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../api/client';
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv'];
 
 export default function VideoUpload() {
@@ -25,7 +25,7 @@ export default function VideoUpload() {
     }
 
     if (selected.size > MAX_FILE_SIZE) {
-      setError('ファイルサイズが100MBを超えています');
+      setError('ファイルサイズが5MBを超えています');
       return;
     }
 
@@ -92,7 +92,7 @@ export default function VideoUpload() {
             <div>
               <p className="text-gray-500">クリックして動画を選択</p>
               <p className="mt-1 text-sm text-gray-400">
-                mp4, mov, avi, wmv / 最大100MB / 1分以内
+                mp4, mov, avi, wmv / 最大5MB / 1分以内
               </p>
             </div>
           )}

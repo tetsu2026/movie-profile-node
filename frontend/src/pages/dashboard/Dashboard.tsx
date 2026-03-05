@@ -139,7 +139,7 @@ export default function Dashboard() {
 
         {/* プレビュー */}
         <Link
-          to={`/users/${user?.id}`}
+          to="/dashboard/profile/preview"
           className="rounded-2xl p-5 transition-transform hover:scale-[1.02]"
           style={{ backgroundColor: '#FAF5FF' }}
         >

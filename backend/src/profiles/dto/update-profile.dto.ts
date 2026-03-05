@@ -1,6 +1,7 @@
 import {
   IsString,
   IsOptional,
+  IsBoolean,
   MaxLength,
   IsInt,
   Matches,
@@ -30,4 +31,8 @@ export class UpdateProfileDto {
     message: 'テーマカラーの形式が正しくありません',
   })
   themeColor?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }
