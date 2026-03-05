@@ -55,7 +55,24 @@ export class StorageService {
   }
 
   /**
-   * S3からファイルをダウンロード
+   * S3からファイルをストリームとしてダウンロード
+   */
+  async downloadStream(key: string): Promise<{ stream: Readable; contentLength?: number }> {
+    const response = await this.s3.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
+
+    return {
+      stream: response.Body as Readable,
+      contentLength: response.ContentLength,
+    };
+  }
+
+  /**
+   * S3からファイルをバッファとしてダウンロード（エンコード処理用）
    */
   async download(key: string): Promise<Buffer> {
     const response = await this.s3.send(

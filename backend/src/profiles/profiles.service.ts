@@ -66,8 +66,17 @@ export class ProfilesService {
    * 公開プロフィールを取得
    */
   async getPublicProfile(userId: number) {
+    // ソフトデリート済みユーザーのプロフィールは非公開
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    });
+    if (!user) {
+      throw new NotFoundException('プロフィールが見つかりません');
+    }
+
     const profile = await this.prisma.profile.findFirst({
-      where: { deletedAt: null,
+      where: {
+        deletedAt: null,
         userId,
         isPublic: true,
       },

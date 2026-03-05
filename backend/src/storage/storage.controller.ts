@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   Res,
+  BadRequestException,
   NotFoundException,
   Logger,
 } from '@nestjs/common';
@@ -32,8 +33,19 @@ export class StorageController {
       throw new NotFoundException('ファイルパスが指定されていません');
     }
 
+    // パストラバーサル防止
+    if (key.includes('..') || key.startsWith('/')) {
+      throw new BadRequestException('不正なファイルパスです');
+    }
+
+    // エンコード済み動画のみ配信を許可
+    const allowedPattern = /^users\/\d+\/encoded\/\d+\.mp4$/;
+    if (!allowedPattern.test(key)) {
+      throw new NotFoundException('ファイルが見つかりません');
+    }
+
     try {
-      const fileBuffer = await this.storageService.download(key);
+      const { stream, contentLength } = await this.storageService.downloadStream(key);
 
       // Content-Typeを拡張子から推定
       const contentType = key.endsWith('.mp4')
@@ -42,11 +54,21 @@ export class StorageController {
 
       res.set({
         'Content-Type': contentType,
-        'Content-Length': fileBuffer.length.toString(),
         'Cache-Control': 'public, max-age=86400',
+        ...(contentLength && { 'Content-Length': contentLength.toString() }),
       });
 
-      res.send(fileBuffer);
+      // ストリームエラー時のハンドリング
+      stream.on('error', (err) => {
+        this.logger.warn(`ストリーミングエラー: ${key}`, err);
+        if (!res.headersSent) {
+          res.status(404).json({ message: 'ファイルが見つかりません' });
+        } else {
+          res.destroy();
+        }
+      });
+
+      stream.pipe(res);
     } catch (error) {
       this.logger.warn(`ファイル取得失敗: ${key}`, error);
       throw new NotFoundException('ファイルが見つかりません');

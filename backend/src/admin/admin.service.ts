@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -18,14 +18,16 @@ export class AdminService {
   async findAll(page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
 
+    const where = { deletedAt: null };
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: { profile: true },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
 
     return {
@@ -90,6 +92,19 @@ export class AdminService {
       throw new NotFoundException('ユーザーが見つかりません');
     }
 
+    // 動画の存在確認とエンコード完了チェック
+    if (dto.thumbnailVideoId) {
+      const video = await this.prisma.video.findFirst({
+        where: { deletedAt: null, id: dto.thumbnailVideoId, userId },
+      });
+      if (!video) {
+        throw new BadRequestException('選択された動画が無効です');
+      }
+      if (video.status !== 'completed') {
+        throw new BadRequestException('エンコードが完了していない動画は選択できません');
+      }
+    }
+
     // トランザクションで User + Profile を更新
     await this.prisma.$transaction([
       this.prisma.user.update({
@@ -144,7 +159,10 @@ export class AdminService {
     }
 
     // ソフトデリート
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: new Date() },
+    });
     this.logger.log(`ユーザー削除: ${userId}`);
 
     return { message: 'ユーザーを削除しました' };

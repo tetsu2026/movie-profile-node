@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   UnauthorizedException,
   ConflictException,
   Logger,
@@ -8,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
@@ -18,6 +20,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly storageService: StorageService,
   ) {}
 
   /**
@@ -32,9 +35,7 @@ export class AuthService {
       throw new UnauthorizedException('メールアドレスまたはパスワードが正しくありません');
     }
 
-    // Laravel互換: $2y$ プレフィックスを $2b$ に変換してから比較
-    const hashForCompare = user.password.replace(/^\$2y\$/, '$2b$');
-    const isPasswordValid = await bcrypt.compare(password, hashForCompare);
+    const isPasswordValid = await this.verifyPassword(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('メールアドレスまたはパスワードが正しくありません');
     }
@@ -46,6 +47,11 @@ export class AuthService {
    * ユーザー登録（User + Profile 同時作成）
    */
   async register(dto: RegisterDto) {
+    // パスワード確認チェック
+    if (dto.password !== dto.passwordConfirmation) {
+      throw new BadRequestException('パスワードが一致しません');
+    }
+
     // メール重複チェック
     const existing = await this.prisma.user.findFirst({
       where: { deletedAt: null, email: dto.email },
@@ -54,8 +60,7 @@ export class AuthService {
       throw new ConflictException('このメールアドレスは既に登録されています');
     }
 
-    // Laravel互換: $2b$ → $2y$ に変換して保存
-    const hashedPassword = (await bcrypt.hash(dto.password, 12)).replace(/^\$2b\$/, '$2y$');
+    const hashedPassword = await this.hashPassword(dto.password);
 
     // トランザクションで User + Profile を同時作成
     const user = await this.prisma.$transaction(async (tx) => {
@@ -163,15 +168,12 @@ export class AuthService {
       throw new UnauthorizedException('ユーザーが見つかりません');
     }
 
-    // Laravel互換: $2y$ プレフィックスを $2b$ に変換してから比較
-    const hashForCompare = user.password.replace(/^\$2y\$/, '$2b$');
-    const isValid = await bcrypt.compare(currentPassword, hashForCompare);
+    const isValid = await this.verifyPassword(currentPassword, user.password);
     if (!isValid) {
       throw new UnauthorizedException('現在のパスワードが正しくありません');
     }
 
-    // Laravel互換: $2b$ → $2y$ に変換して保存
-    const hashedPassword = (await bcrypt.hash(newPassword, 12)).replace(/^\$2b\$/, '$2y$');
+    const hashedPassword = await this.hashPassword(newPassword);
     await this.prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
@@ -182,9 +184,49 @@ export class AuthService {
    * アカウント削除（ソフトデリート）
    */
   async deleteAccount(userId: number) {
-    await this.prisma.user.delete({
+    // 動画のS3ファイルを削除
+    const videos = await this.prisma.video.findMany({
+      where: { deletedAt: null, userId },
+    });
+
+    for (const video of videos) {
+      if (video.encodedPath) {
+        try {
+          await this.storageService.delete(video.encodedPath);
+        } catch (error) {
+          this.logger.warn(`S3ファイル削除失敗: ${video.encodedPath}`, error);
+        }
+      }
+      if (video.originalPath) {
+        try {
+          await this.storageService.delete(video.originalPath);
+        } catch (error) {
+          this.logger.warn(`S3ファイル削除失敗: ${video.originalPath}`, error);
+        }
+      }
+    }
+
+    // ソフトデリート
+    await this.prisma.user.update({
       where: { id: userId },
+      data: { deletedAt: new Date() },
     });
     this.logger.log(`アカウント削除: ${userId}`);
+  }
+
+  /**
+   * パスワードをハッシュ化（Laravel互換: $2b$ → $2y$ に変換）
+   */
+  private async hashPassword(password: string): Promise<string> {
+    const hash = await bcrypt.hash(password, 12);
+    return hash.replace(/^\$2b\$/, '$2y$');
+  }
+
+  /**
+   * パスワードを検証（Laravel互換: $2y$ → $2b$ に変換してから比較）
+   */
+  private async verifyPassword(password: string, hash: string): Promise<boolean> {
+    const hashForCompare = hash.replace(/^\$2y\$/, '$2b$');
+    return bcrypt.compare(password, hashForCompare);
   }
 }
