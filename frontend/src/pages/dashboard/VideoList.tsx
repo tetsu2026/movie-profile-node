@@ -115,11 +115,20 @@ export default function VideoList() {
     return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
   };
 
-  const usageLabel = (videoId: number) => {
-    const labels: string[] = [];
-    if (videoId === thumbnailVideoId) labels.push('サムネイル');
-    if (videoId === popupVideoId) labels.push('ポップアップ');
-    return labels.length > 0 ? labels.join('・') : '—';
+  const usageBadges = (videoId: number) => {
+    const isThumbnail = videoId === thumbnailVideoId;
+    const isPopup = videoId === popupVideoId;
+    if (!isThumbnail && !isPopup) return <span className="text-xs text-gray-300">—</span>;
+    return (
+      <div className="flex items-center gap-1">
+        {isThumbnail && (
+          <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#FFF7ED', color: '#C2410C' }}>サムネイル</span>
+        )}
+        {isPopup && (
+          <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#F0F9FF', color: '#0369A1' }}>ポップアップ</span>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -178,7 +187,8 @@ export default function VideoList() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
-          <table className="w-full text-left text-sm">
+          {/* PC版: テーブル表示 */}
+          <table className="hidden w-full text-left text-sm md:table">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-gray-400">ファイル名</th>
@@ -194,7 +204,7 @@ export default function VideoList() {
                   <td className="px-5 py-3 font-medium text-gray-900">{video.originalFilename}</td>
                   <td className="px-5 py-3">{statusBadge(video.status)}</td>
                   <td className="px-5 py-3 text-gray-500">{formatDate(video.createdAt)}</td>
-                  <td className="px-5 py-3 text-gray-500">{usageLabel(video.id)}</td>
+                  <td className="px-5 py-3">{usageBadges(video.id)}</td>
                   <td className="px-5 py-3">
                     <button
                       onClick={() => handleDelete(video.id)}
@@ -207,6 +217,39 @@ export default function VideoList() {
               ))}
             </tbody>
           </table>
+
+          {/* スマホ版: カード表示 */}
+          <div className="divide-y divide-gray-50 md:hidden">
+            {videos.map((video) => (
+              <div key={video.id} className="px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">{video.originalFilename}</p>
+                    <div className="mt-2">
+                      {statusBadge(video.status)}
+                    </div>
+                    {(video.id === thumbnailVideoId || video.id === popupVideoId) && (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        {video.id === thumbnailVideoId && (
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#FFF7ED', color: '#C2410C' }}>サムネイル</span>
+                        )}
+                        {video.id === popupVideoId && (
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#F0F9FF', color: '#0369A1' }}>ポップアップ</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleDelete(video.id)}
+                    className="flex-shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    削除
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-400">{formatDate(video.createdAt)}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
