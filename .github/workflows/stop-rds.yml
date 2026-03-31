@@ -1,0 +1,32 @@
+name: Stop RDS Daily
+
+on:
+  schedule:
+    - cron: '0 21 * * *'  # 毎日 UTC 21:00（JST 06:00）
+  workflow_dispatch:       # 手動実行も可能
+
+jobs:
+  stop-rds:
+    name: Stop RDS Instance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Stop RDS
+        run: |
+          STATUS=$(aws rds describe-db-instances \
+            --db-instance-identifier production-movie-prf-db \
+            --query 'DBInstances[0].DBInstanceStatus' \
+            --output text 2>&1)
+
+          if [ "$STATUS" = "available" ]; then
+            aws rds stop-db-instance --db-instance-identifier production-movie-prf-db
+            echo "RDS停止コマンドを実行しました"
+          else
+            echo "RDSは現在 $STATUS のため、停止不要です"
+          fi
