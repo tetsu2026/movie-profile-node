@@ -76,14 +76,14 @@ describe('VideosService', () => {
     it('正常に動画を削除できる', async () => {
       prisma.video.findFirst.mockResolvedValue({ ...mockVideo });
       prisma.profile.findFirst.mockResolvedValue({ ...mockProfile });
-      prisma.video.delete.mockResolvedValue(undefined);
+      prisma.video.update.mockResolvedValue(undefined);
 
       const result = await service.delete(1, 1);
 
       expect(result).toEqual({ message: '動画を削除しました' });
       expect(storageService.delete).toHaveBeenCalledWith('users/1/encoded/1.mp4');
       expect(storageService.delete).toHaveBeenCalledWith('users/1/original/1.mp4');
-      expect(prisma.video.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prisma.video.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { deletedAt: expect.any(Date) } });
     });
 
     it('存在しない動画の場合はNotFoundExceptionを投げる', async () => {
@@ -163,12 +163,12 @@ describe('VideosService', () => {
       prisma.video.findFirst.mockResolvedValue({ ...mockVideo });
       prisma.profile.findFirst.mockResolvedValue({ ...mockProfile });
       storageService.delete.mockRejectedValue(new Error('S3 error'));
-      prisma.video.delete.mockResolvedValue(undefined);
+      prisma.video.update.mockResolvedValue(undefined);
 
       const result = await service.delete(1, 1);
 
       expect(result).toEqual({ message: '動画を削除しました' });
-      expect(prisma.video.delete).toHaveBeenCalled();
+      expect(prisma.video.update).toHaveBeenCalled();
     });
 
     it('encodedPathがnullの場合はS3削除をスキップする', async () => {
