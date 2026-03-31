@@ -159,6 +159,7 @@ update_app() {
     fi
 
     log_step "2/4: 最新コードを取得"
+    git remote set-url origin "$REPO_URL"
     git fetch origin
     git reset --hard "origin/$BRANCH"
 
