@@ -47,3 +47,4 @@ jobs:
             cd /var/www/movie-prf-node
             git remote set-url origin https://${{ secrets.GH_TOKEN }}@github.com/tetsu2026/movie-profile-node.git
             bash deploy/deploy.sh --update --repo https://${{ secrets.GH_TOKEN }}@github.com/tetsu2026/movie-profile-node.git
+            git remote set-url origin git@github.com:tetsu2026/movie-profile-node.git

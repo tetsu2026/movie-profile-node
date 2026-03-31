@@ -21,7 +21,7 @@ NC='\033[0m' # No Color
 
 # 設定
 APP_DIR="/var/www/movie-prf-node"
-REPO_URL="git@github.com:tetsu2026/movie-prf-node.git"
+REPO_URL="git@github.com:tetsu2026/movie-profile-node.git"
 BRANCH="master"
 
 # ログ出力関数
