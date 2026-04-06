@@ -22,9 +22,11 @@ jobs:
           STATUS=$(aws rds describe-db-instances \
             --db-instance-identifier production-movie-prf-db \
             --query 'DBInstances[0].DBInstanceStatus' \
-            --output text 2>&1)
+            --output text 2>&1) || true
 
-          if [ "$STATUS" = "available" ]; then
+          if echo "$STATUS" | grep -q "DBInstanceNotFound"; then
+            echo "RDSインスタンスが存在しません。スキップします"
+          elif [ "$STATUS" = "available" ]; then
             aws rds stop-db-instance --db-instance-identifier production-movie-prf-db
             echo "RDS停止コマンドを実行しました"
           else
