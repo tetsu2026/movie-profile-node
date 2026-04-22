@@ -22,6 +22,9 @@
 
 > **備考**: Phase 5は#17（動画エンコード機能）完了後に着手することを推奨。MVPのコア機能として、Phase 2完了後に実装するのが現実的。
 
+### Phase 6: DB統一（#28）
+Laravel版が PostgreSQL 単一 DB 構成に統合したのに合わせ、Node.js 版も MySQL → PostgreSQL に移行して設計書・運用環境を統一する。
+
 ---
 
 ## 依存関係マップ
@@ -49,6 +52,9 @@ Phase 4: 堅牢化
 
 Phase 5: 動画表示
 #10, #14 → #27
+
+Phase 6: DB統一
+#3 → #28
 ```
 
 ---
@@ -539,6 +545,28 @@ Phase 5: 動画表示
 - [ ] status='completed'の動画のみ表示される
 - [ ] レスポンシブ対応（モバイル・タブレット・デスクトップ）
 - [ ] プレビューページでも同じ動画表示機能が動作する
+
+---
+
+### Phase 6: DB統一
+
+#### Issue #28: PostgreSQL への移行（MySQL 廃止）
+
+**概要**: Laravel 版が PostgreSQL 単一 DB 構成に統合されたのに合わせ、Node.js 版も MySQL → PostgreSQL へ移行。Prisma の `provider` を `postgresql` に変更し、初期マイグレーションをリセットして再生成する。チャットボットは今回導入しない。
+
+**依存**: #3
+
+**タスク領域**: backend, infrastructure, database
+
+**受け入れ基準(AC)**:
+- [x] `schema.prisma` の `provider` が `postgresql` である
+- [x] `migration_lock.toml` の `provider` が `postgresql` である
+- [x] `docker-compose.yml` の DB サービスが `postgres:16` で `pg_isready` ヘルスチェック付き
+- [x] `.env.example` / `.env.production.example` / `.env.test` の `DATABASE_URL` が `postgresql://` 形式
+- [x] `deploy/deploy.sh` の URL 例が PostgreSQL 形式
+- [ ] ローカルで `docker compose down -v && docker compose up -d db && prisma migrate dev --name init` が成功する
+- [ ] `npm run test:e2e` が全件パスする
+- [ ] 手動検証: 登録 → プロフィール作成 → 動画アップロード → エンコード → 公開プロフィール閲覧が一貫動作する
 
 ---
 
