@@ -9,7 +9,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=mysql://root:password@db:3306/movie_prf
+      - DATABASE_URL=postgresql://movie_prf:password@db:5432/movie_prf
       - JWT_SECRET=dev-jwt-secret-key
       - JWT_REFRESH_SECRET=dev-jwt-refresh-secret-key
       - AWS_ACCESS_KEY_ID=minioadmin
@@ -43,18 +43,17 @@ services:
       - api
 
   db:
-    image: mysql:8.0
+    image: postgres:16
     ports:
-      - "3307:3306"
+      - "5433:5432"
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: movie_prf
-      MYSQL_CHARSET: utf8mb4
-      MYSQL_COLLATION: utf8mb4_unicode_ci
+      POSTGRES_DB: movie_prf
+      POSTGRES_USER: movie_prf
+      POSTGRES_PASSWORD: password
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U movie_prf"]
       interval: 10s
       timeout: 5s
       retries: 5
