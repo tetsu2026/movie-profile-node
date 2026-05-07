@@ -12,6 +12,10 @@
 
 set -e
 
+# Node.js ビルド時のメモリ上限引き上げ（小型インスタンス対策）
+# 物理メモリが少ない環境（458MB等）では nest build が OOM するため
+export NODE_OPTIONS="--max-old-space-size=1536"
+
 # 色付き出力
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -86,16 +90,21 @@ restart_pm2() {
     fi
 }
 
-# ヘルスチェック
+# ヘルスチェック（小型インスタンスでは起動完了まで時間がかかるためリトライ式）
 health_check() {
     log_step "ヘルスチェック"
-    sleep 3
-    if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-        log_info "ヘルスチェック OK"
-    else
-        log_warn "ヘルスチェック失敗。ログを確認してください:"
-        echo "  pm2 logs movie-prf-node --lines 30"
-    fi
+    local max_attempts=10
+    local interval=2
+    for ((i=1; i<=max_attempts; i++)); do
+        sleep "$interval"
+        if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+            log_info "ヘルスチェック OK (${i}回目で成功)"
+            return 0
+        fi
+    done
+    log_warn "ヘルスチェック失敗（${max_attempts}回試行）。ログを確認してください:"
+    echo "  pm2 logs movie-prf-node --lines 30"
+    return 1
 }
 
 # 初回セットアップ
