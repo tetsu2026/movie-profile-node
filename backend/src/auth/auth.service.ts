@@ -70,6 +70,9 @@ export class AuthService {
           email: dto.email,
           password: hashedPassword,
           role: 'user',
+          // Node.js版では確認メールを送らないため、登録時点で検証済みとして扱う。
+          // これがないとLaravel側ログイン時にメール確認画面へ遷移してしまう。
+          emailVerifiedAt: new Date(),
         },
       });
 
