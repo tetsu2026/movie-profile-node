@@ -22,6 +22,10 @@ set -euo pipefail
 REGION=ap-northeast-1
 CLOUDFRONT_DOMAIN=node.hozu.click
 
+# AWS CLI 用 profile を固定（ローカルPCの ~/.aws/credentials の [movie-prf] を使用）
+export AWS_PROFILE=movie-prf
+echo "==> Using AWS profile: ${AWS_PROFILE}"
+
 # ===== 事前チェック =====
 if ! command -v aws &>/dev/null; then
     echo "Error: AWS CLI が見つかりません。aws configure で設定してください。" >&2
