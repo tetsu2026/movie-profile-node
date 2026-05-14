@@ -26,6 +26,10 @@ CLUSTER=movie-prf
 REPO_NAME=movie-prf-node
 SERVICE_NAME=nodejs-api
 
+# AWS CLI 用 profile を固定（ローカルPCの ~/.aws/credentials の [movie-prf] を使用）
+export AWS_PROFILE=movie-prf
+echo "==> Using AWS profile: ${AWS_PROFILE}"
+
 # ===== 事前チェック =====
 if ! command -v aws &>/dev/null; then
     echo "Error: AWS CLI が見つかりません。aws configure で設定してください。" >&2
