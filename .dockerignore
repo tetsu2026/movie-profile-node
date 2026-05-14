@@ -1,0 +1,67 @@
+# =====================================================================
+# Docker build context 除外設定
+# 本番イメージに不要なファイル、機密情報を除外
+# =====================================================================
+
+# Node 依存（Stage 1 で再インストール、Stage 2 でも --omit=dev で再インストール）
+node_modules/
+
+# ビルド成果物（builder stage で生成するので不要）
+backend/dist/
+frontend/dist/
+
+# 環境変数（シークレットなのでイメージに絶対含めない）
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!frontend/.env.production
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# テスト
+backend/test/
+backend/coverage/
+backend/.jest/
+frontend/playwright/
+frontend/playwright-report/
+frontend/test-results/
+*.test.ts
+*.spec.ts
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Docker 関連メタ
+.dockerignore
+docker-compose*.yml
+Dockerfile
+
+# ドキュメント
+docs/
+deploy/
+ecosystem.config.js
+*.md
+!README.md
+
+# Phase 7 API イメージには不要なディレクトリ
+# frontend は S3 にデプロイされ、API コンテナには含まれない
+frontend/
+# Laravel 参照用コード
+_laravel_ref/
+
+# ローカル作業ファイル
+*.png
+*.log
