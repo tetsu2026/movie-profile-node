@@ -1,0 +1,68 @@
+# =====================================================================
+# Phase 7 本番用 Dockerfile（マルチステージビルド・NestJS用）
+# =====================================================================
+# Stage 1: builder  - 全依存インストール、Prisma Client 生成、TypeScript ビルド
+# Stage 2: runtime  - 本番依存のみ、dist/ と必要な node_modules をコピー、ffmpeg 同梱
+# =====================================================================
+# ECS タスク 1 種（nodejs-api）で起動。BullMQ Worker は NestJS プロセス内に同居する。
+# Laravel のように web/worker を別タスクにする必要はない（BullMQ がプロセス内で動くため）。
+# =====================================================================
+
+
+# ============ Stage 1: builder ============
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# 依存ファイルだけ先にコピーしてキャッシュ効率を上げる
+COPY package.json package-lock.json ./
+
+# 全依存（dev 含む）インストール
+RUN npm ci
+
+# Prisma スキーマをコピーしてクライアント生成
+COPY prisma ./prisma/
+RUN npx prisma generate
+
+# ソースをコピーして NestJS をビルド
+COPY tsconfig*.json nest-cli.json ./
+COPY src ./src
+
+RUN npm run build
+
+
+# ============ Stage 2: runtime ============
+FROM node:20-slim AS runtime
+
+# OS パッケージ:
+# - ffmpeg : fluent-ffmpeg で動画エンコード
+# - tini   : PID 1 として動かして SIGTERM を子プロセスに正しく伝える
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg tini \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 本番依存だけ再インストール（dev を除外してイメージサイズを縮小）
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev \
+    && npm cache clean --force
+
+# Prisma Client（builder で生成済み）を runtime に持ち込む
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# ビルド成果物と Prisma スキーマ
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+EXPOSE 3000
+
+# tini を PID 1 にして node を子プロセス起動
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# start:prod 相当
+CMD ["node", "dist/main"]
