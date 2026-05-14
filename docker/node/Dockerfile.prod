@@ -1,68 +1,93 @@
 # =====================================================================
-# Phase 7 本番用 Dockerfile（マルチステージビルド・NestJS用）
+# Phase 7 本番用 Dockerfile（マルチステージビルド・NestJS用・最適化版 v2）
 # =====================================================================
-# Stage 1: builder  - 全依存インストール、Prisma Client 生成、TypeScript ビルド
-# Stage 2: runtime  - 本番依存のみ、dist/ と必要な node_modules をコピー、ffmpeg 同梱
+# Stage 0: ffmpeg-bin - static link された ffmpeg バイナリだけ取得
+# Stage 1: builder    - 全依存インストール、bcrypt native ビルド、Prisma 生成、
+#                       NestJS ビルド、最後に npm prune --omit=dev で dev 依存を削除
+# Stage 2: runtime    - Alpine ベース、build tools 無し、最小限の runtime
 # =====================================================================
-# ECS タスク 1 種（nodejs-api）で起動。BullMQ Worker は NestJS プロセス内に同居する。
-# Laravel のように web/worker を別タスクにする必要はない（BullMQ がプロセス内で動くため）。
+# build context はリポジトリルート（/home/hozumi/claude/movie-prf-node/）
+# NestJS のソースは backend/ 配下にあるため、COPY パスは backend/ プレフィックス付き
 # =====================================================================
+
+
+# ============ Stage 0: ffmpeg-bin ============
+FROM mwader/static-ffmpeg:7.0 AS ffmpeg-bin
 
 
 # ============ Stage 1: builder ============
-FROM node:20-slim AS builder
+# Alpine + build tools で bcrypt native build を実行。
+# builder stage 自体は破棄されるので build tools の重さは気にしなくて良い
+FROM node:20-alpine AS builder
+
+# bcrypt の native build に必要なツール + Prisma が使う openssl
+RUN apk add --no-cache python3 make g++ openssl
 
 WORKDIR /app
 
 # 依存ファイルだけ先にコピーしてキャッシュ効率を上げる
-COPY package.json package-lock.json ./
+COPY backend/package.json backend/package-lock.json ./
 
-# 全依存（dev 含む）インストール
+# 全依存（dev 含む）インストール → bcrypt も native ビルドされる
 RUN npm ci
 
 # Prisma スキーマをコピーしてクライアント生成
-COPY prisma ./prisma/
+# Alpine で generate するので linux-musl-openssl-3.0.x の binary が選択される
+COPY backend/prisma ./prisma/
 RUN npx prisma generate
 
 # ソースをコピーして NestJS をビルド
-COPY tsconfig*.json nest-cli.json ./
-COPY src ./src
+COPY backend/tsconfig*.json backend/nest-cli.json ./
+COPY backend/src ./src
 
-RUN npm run build
+RUN npm run build \
+    && npm prune --omit=dev \
+    && npm cache clean --force \
+    # node_modules 内の不要ファイルを削除して軽量化
+    && find ./node_modules -type d \( \
+        -name tests -o -name test -o -name __tests__ \
+        -o -name docs -o -name doc -o -name examples \
+        -o -name "@types" \
+        \) -prune -exec rm -rf {} + 2>/dev/null \
+    && find ./node_modules -type f \( \
+        -name "*.md" -o -name "*.markdown" -o -name "*.ts" \
+        -o -name "CHANGELOG*" -o -name "HISTORY*" -o -name "UPGRADE*" \
+        -o -name ".gitignore" -o -name ".npmignore" -o -name ".gitattributes" \
+        -o -name ".eslintrc*" -o -name ".prettierrc*" -o -name ".editorconfig" \
+        -o -name "*.map" \
+        \) -delete 2>/dev/null \
+    || true
 
 
 # ============ Stage 2: runtime ============
-FROM node:20-slim AS runtime
+FROM node:20-alpine AS runtime
 
-# OS パッケージ:
-# - ffmpeg : fluent-ffmpeg で動画エンコード
+# Alpine の runtime 必要パッケージ:
 # - tini   : PID 1 として動かして SIGTERM を子プロセスに正しく伝える
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg tini \
-    && rm -rf /var/lib/apt/lists/*
+# - openssl: Prisma Client が必要とする
+RUN apk add --no-cache tini openssl \
+    && rm -rf /var/cache/apk/* /tmp/*
+
+# Stage 0 から ffmpeg バイナリのみコピー（static link 済みで依存ライブラリ不要）
+COPY --from=ffmpeg-bin /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg-bin /ffprobe /usr/local/bin/ffprobe
 
 WORKDIR /app
 
-# 本番依存だけ再インストール（dev を除外してイメージサイズを縮小）
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev \
-    && npm cache clean --force
-
-# Prisma Client（builder で生成済み）を runtime に持ち込む
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
-# ビルド成果物と Prisma スキーマ
+# Stage 1 でビルド・prune 済みの node_modules をそのまま COPY
+# （runtime で再インストールしないので bcrypt の build tools も不要）
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY backend/package.json ./package.json
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
 
-# tini を PID 1 にして node を子プロセス起動
-ENTRYPOINT ["/usr/bin/tini", "--"]
+# Alpine の tini は /sbin/tini に配置される
+ENTRYPOINT ["/sbin/tini", "--"]
 
 # start:prod 相当
 CMD ["node", "dist/main"]

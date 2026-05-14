@@ -56,6 +56,12 @@ ecosystem.config.js
 *.md
 !README.md
 
+# Phase 7 API イメージには不要なディレクトリ
+# frontend は S3 にデプロイされ、API コンテナには含まれない
+frontend/
+# Laravel 参照用コード
+_laravel_ref/
+
 # ローカル作業ファイル
 *.png
 *.log
