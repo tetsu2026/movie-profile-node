@@ -20,7 +20,7 @@ env:
   AWS_REGION: ap-northeast-1
   ECR_REPOSITORY: movie-prf-node
   ECS_CLUSTER: movie-prf
-  ECS_SERVICE: nodejs-api
+  ECS_SERVICE: nodejs-api-service
   TASK_FAMILY: nodejs-api
   CONTAINER_NAME: nodejs-api
 
