@@ -24,7 +24,7 @@ set -euo pipefail
 REGION=ap-northeast-1
 CLUSTER=movie-prf
 REPO_NAME=movie-prf-node
-SERVICE_NAME=nodejs-api
+SERVICE_NAME=nodejs-api-service
 
 # AWS CLI 用 profile を固定（ローカルPCの ~/.aws/credentials の [movie-prf] を使用）
 export AWS_PROFILE=movie-prf
