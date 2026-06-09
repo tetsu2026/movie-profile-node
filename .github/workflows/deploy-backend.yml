@@ -1,0 +1,88 @@
+name: Deploy Backend (API)
+
+# API(NestJS) を master への push で ECS へ自動デプロイする。
+# 方式B: 毎回 :sha タグの新タスク定義リビジョンを登録し、サービスを更新する。
+# 認証は OIDC（短命の一時クレデンシャル）。永続アクセスキーは使わない。
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - 'docker/node/Dockerfile.prod'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:        # Actions タブからの手動実行も可能
+
+permissions:
+  id-token: write           # OIDC トークン取得に必須
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: movie-prf-node
+  ECS_CLUSTER: movie-prf
+  ECS_SERVICE: nodejs-api
+  TASK_FAMILY: nodejs-api
+  CONTAINER_NAME: nodejs-api
+
+jobs:
+  deploy-backend:
+    name: Build & Deploy API to ECS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Test (gate)
+        working-directory: backend
+        run: |
+          npm ci
+          npm test
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_API_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image (:sha と :latest)
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE="$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}"
+          docker build -f docker/node/Dockerfile.prod -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$IMAGE_TAG"
+          docker push "$IMAGE:latest"
+          echo "image=$IMAGE:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download current task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.TASK_FAMILY }} --query taskDefinition --output json > taskdef-full.json
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .enableFaultInjection)' taskdef-full.json > task-definition.json
+
+      - name: Render task definition (新しい:shaイメージを差し込む)
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build.outputs.image }}
+
+      - name: Deploy to ECS (新リビジョン登録 + サービス更新 + 安定化待機)
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
