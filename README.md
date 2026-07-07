@@ -4,15 +4,15 @@
 **Laravel版**（[movie-profile](https://github.com/tetsu2026/movie-profile)）の**同一サービスを
 NestJS + React で再構築**したもので、本番では**同一の RDS PostgreSQL を共有**しています。
 
-🔗 **デモ**: https://node.hozu.click/
+🔗 **公開サイト**: https://node.hozu.click/
 
 > NestJS + TypeScript + Prisma 6 / React（Vite）/ AWS（CloudFront・ECS on EC2・S3）
 
-## デモ
+## 動作確認
 
 ### 動作確認用アカウント
 
-動作確認用アカウントは、応募書類（職務経歴書「個人開発」の項）に記載しています。
+動作確認用アカウントは、応募書類（職務経歴書 5ページ目「個人開発」の項）に記載しています。
 
 > Laravel版・NestJS版は **同一アカウントでログイン可能**です（DB共有のため）。
 
