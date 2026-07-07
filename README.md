@@ -1,119 +1,112 @@
-# 動画付き自己紹介プラットフォーム
+# 動画プロフィール（NestJS・React版）
 
-動画を使った自己紹介ページを作成・共有できるWebアプリケーション。
+動画を使った自己紹介ページを作成・公開できる Web サービス。
+**Laravel版**（[movie-profile](https://github.com/tetsu2026/movie-profile)）の**同一サービスを
+NestJS + React で再構築**したもので、本番では**同一の RDS PostgreSQL を共有**しています。
+
+🔗 **デモ**: https://node.hozu.click/
+
+> NestJS + TypeScript + Prisma 6 / React（Vite）/ AWS（CloudFront・ECS on EC2・S3）
+
+## デモ
+
+### 動作確認用アカウント
+
+動作確認用アカウントは、応募書類（職務経歴書「個人開発」の項）に記載しています。
+
+> Laravel版・NestJS版は **同一アカウントでログイン可能**です（DB共有のため）。
+
+## 主な機能
+
+- ユーザー登録・ログイン（JWT / httpOnly Cookie）
+- プロフィール作成と**公開ページ**の表示
+- **動画アップロード → 自動エンコード**（H.264 / 最大1080p / mp4）
+- 動画つきプロフィールの公開
+- 管理者によるユーザー・動画の管理
 
 ## 技術スタック
 
-- **バックエンド**: NestJS + TypeScript + Prisma + MySQL 8.0
-- **フロントエンド**: Vite + React + Tailwind CSS v4
-- **インフラ**: AWS (EC2, S3, RDS) + Docker (ローカル開発)
-- **動画処理**: fluent-ffmpeg + BullMQ (Redis)
+- **バックエンド**: NestJS + TypeScript + Prisma 6
+- **フロントエンド**: Vite + React + Tailwind CSS v4（SPA）
+- **データベース**: PostgreSQL（Laravel版と共有）
+- **認証**: Passport.js + JWT（httpOnly Cookie）。Laravel互換 bcrypt（`$2y$`↔`$2b$`）
+- **動画処理**: fluent-ffmpeg + BullMQ（Redis）
+- **ストレージ**: AWS S3（`@aws-sdk/client-s3` / ローカルは MinIO）
+- **インフラ**: AWS（CloudFront・ECS on EC2・ECR・RDS・S3）/ ローカルは Docker Compose
+
+## アーキテクチャ（本番 / AWS）
+
+```
+ユーザー
+  │  HTTPS（node.hozu.click）
+  ▼
+CloudFront（ACM us-east-1）
+  ├─ /*     → S3（SPA静的ファイル / movie-prf-spa）※キャッシュ
+  └─ /api/* → EC2 host nginx（SSL終端）
+                 └─ :8081 → ECS タスク nodejs-api
+                              ▼
+   ┌──────────── 共有 / EC2 ────────────┐
+   │ RDS PostgreSQL             │ ← Laravel版と共有
+   │ S3（動画オリジナル/エンコード済）│
+   │ ECR（コンテナイメージ）        │
+   │ Redis（EC2ホストに直接インストール / BullMQ専用）│
+   └─────────────────────────────────────┘
+```
+
+- **フロント**: SPA は S3 に配置し CloudFront 経由で配信。`/api/*` のみ EC2 の host nginx → `nodejs-api`（:8081）に転送。
+- **ECS on EC2**: クラスタ `movie-prf`（Laravel版と同一）上で `nodejs-api` タスクが稼働。
+- **Redis**: 本番は**コンテナではなく EC2 ホストに直接インストール**（systemd 管理 / maxmemory 64mb）。BullMQ 専用。
+
+## 工夫した点・技術的こだわり
+
+- **Laravel版の同一サービスを NestJS + React で再構築**し、本番で **RDS PostgreSQL を共有**。設計から本番運用・CI/CDまで一人で構築。
+- **Laravel互換 bcrypt（`$2y$`↔`$2b$`）**を実装し、**両版で同一アカウントをログイン可能**に。スキーマは Laravel migration を主導とし、Prisma は `prisma db pull` で追従。
+- **CloudFront で配信を最適化**：`/*` は S3 の SPA をキャッシュ配信、`/api/*` のみ EC2 へ分岐させて**静的配信とAPIを分離**。
+- **GitHub Actions（OIDC・鍵レス）で自動デプロイ**：永続アクセスキーを持たず、短命の一時クレデンシャルで ECR/ECS・S3/CloudFront を更新。
+- **BullMQ（Redis）で動画エンコードを非同期化**。Redis はコスト最適化のため EC2 ホストに軽量構成で同居。
+
+### デプロイ（GitHub Actions / OIDC）
+
+| ワークフロー | 対象 | 概要 |
+|------------|------|------|
+| `deploy-backend.yml` | API | テスト → ECR（`movie-prf-node`）push → ECS（`nodejs-api-service`）更新・安定化待機 |
+| `deploy-frontend.yml` | SPA | Vite ビルド → S3（`movie-prf-spa`）sync → CloudFront invalidation |
+| `stop-rds.yml` | RDS | コスト対策の RDS 停止 |
+
+## ローカル開発
+
+```bash
+git clone https://github.com/tetsu2026/movie-profile-node.git
+cd movie-profile-node
+docker compose up -d
+
+docker compose exec api npx prisma db push     # ローカルはスキーマ同期に db push
+docker compose exec api npx prisma generate
+```
+
+- アプリ: http://localhost:8080 ／ MinIO 管理画面: http://localhost:9003（minioadmin / minioadmin）
+
+| サービス | ポート | 用途 |
+|---------|--------|------|
+| api | 3000 | NestJS API（Node.js 20 + FFmpeg） |
+| web | 8080 | Nginx（SPA配信 + `/api/*` プロキシ） |
+| db | 5433 | PostgreSQL 16 |
+| minio | 9002 / 9003 | S3 エミュレータ |
+| redis | 6379 | Redis 7（BullMQ） |
 
 ## ディレクトリ構成
 
 ```
-├── backend/                   # NestJS API
-│   ├── src/
-│   │   ├── auth/              # 認証（JWT, ガード）
-│   │   ├── profiles/          # プロフィール管理
-│   │   ├── videos/            # 動画アップロード・エンコード
-│   │   ├── admin/             # 管理者機能
-│   │   ├── prisma/            # PrismaService
-│   │   └── common/            # 共通（フィルター、ミドルウェア等）
-│   ├── prisma/
-│   │   └── schema.prisma      # DBスキーマ定義
-│   └── test/                  # E2Eテスト
-├── frontend/                  # React SPA
-│   └── src/
-│       ├── pages/             # ページコンポーネント
-│       │   ├── auth/          # ログイン、登録
-│       │   ├── dashboard/     # ダッシュボード
-│       │   └── admin/         # 管理者画面
-│       ├── components/        # 再利用可能なコンポーネント
-│       ├── hooks/             # カスタムフック
-│       ├── api/               # APIクライアント（axios）
-│       ├── contexts/          # AuthContext 等
-│       └── guards/            # ルート保護
-├── docs/                      # 設計書
-│   ├── requirements/          # 要件定義
-│   └── design-docs/           # アーキテクチャ、DB設計等
-└── docker-compose.yml
+├── backend/              # NestJS API（auth / profiles / videos / admin / prisma）
+│   └── prisma/schema.prisma   # prisma db pull で Laravel に追従
+├── frontend/             # React SPA（pages / components / hooks / api / contexts）
+├── deploy/               # 本番セットアップ（setup.sh / nginx 等）
+├── docs/                 # 設計書（Laravel版から引き継ぎ）
+├── .github/workflows/    # OIDC デプロイ（backend / frontend）
+└── docker-compose.yml    # ローカル開発用
 ```
-
-## ローカル開発環境
-
-### サービス構成
-
-| サービス | コンテナ名 | ポート | 用途 |
-|---------|-----------|--------|------|
-| api | api | 3000 | NestJS API（Node.js 20 + FFmpeg） |
-| web | web | 80 | Nginx（SPA配信 + `/api/*` プロキシ） |
-| db | db | 3306 | MySQL 8.0 |
-| minio | minio | 9000/9001 | MinIO（S3エミュレータ） |
-| redis | redis | 6379 | Redis 7（BullMQ + キャッシュ） |
-
-### セットアップ
-
-```bash
-# コンテナ起動
-docker compose up -d
-
-# DBスキーマ同期
-docker compose exec api npx prisma db push
-
-# Prisma Client 生成
-docker compose exec api npx prisma generate
-```
-
-### DB接続情報
-
-- ホスト: `localhost:3306`
-- DB名: `movie_prf`
-- ユーザー: `root`
-- パスワード: `password`
-
-### 開発コマンド
-
-```bash
-# バックエンドテスト
-docker compose exec api npm test
-
-# フロントエンド開発サーバー（HMR）
-cd frontend && npm run dev
-
-# フロントエンドビルド
-cd frontend && npm run build
-
-# フロントエンドテスト
-cd frontend && npx vitest run
-```
-
-## コーディング規約
-
-### 命名規則
-
-| 対象 | ルール | 例 |
-|------|--------|------|
-| クラス名 | PascalCase | `VideoController`, `ProfileService` |
-| メソッド名 | camelCase | `uploadVideo()`, `encodeVideo()` |
-| 変数名 | camelCase | `userId`, `encodedPath` |
-| 定数 | UPPER_SNAKE_CASE | `MAX_FILE_SIZE`, `ENCODING_TIMEOUT` |
-| ファイル名（バックエンド） | kebab-case | `video.controller.ts` |
-| ファイル名（フロントエンド） | PascalCase | `VideoThumbnail.tsx` |
-| DTOクラス | PascalCase + Dto | `UpdateProfileDto` |
-| DBテーブル | snake_case（複数形） | `users`, `profiles`, `videos` |
-| DBカラム | snake_case | `user_id`, `created_at` |
-
-### コードスタイル
-
-- ESLint + Prettier で統一（2スペース、セミコロンあり、シングルクォート）
-- NestJS: モジュール・コントローラー・サービスの標準構成
-- React: 関数コンポーネント + hooks（クラスコンポーネント禁止）
-- Tailwind CSS: ユーティリティクラスのみ使用（カスタムCSS禁止）
 
 ## 設計書
-
-`docs/` 配下に配置。詳細は各ファイルを参照。
 
 | ドキュメント | パス |
 |------------|------|
@@ -126,3 +119,7 @@ cd frontend && npx vitest run
 | 画面設計 | `docs/design-docs/07_screen_design.md` |
 | ステートマシン | `docs/design-docs/08_state_machine_video.md` |
 | ER図 | `docs/design-docs/09_er.md` |
+
+## 作者
+
+- GitHub: [@tetsu2026](https://github.com/tetsu2026)
